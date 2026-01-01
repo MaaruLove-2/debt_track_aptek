@@ -1,0 +1,103 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Müştəriləri idxal et - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-upload"></i> {% trans "1C faylından müştəriləri idxal et" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> {% trans "Fayl formatı tələbləri" %}:</h6>
+                    <ul class="mb-0">
+                        <li>{% trans "Dəstəklənən formatlar" %}: <strong>CSV (.csv)</strong> {% trans "və ya" %} <strong>Excel (.xlsx, .xls)</strong></li>
+                        <li>{% trans "Fayl müştəri məlumatları olan sütunlar ehtiva etməlidir" %}</li>
+                        <li><strong>{% trans "Tələb olunur" %}:</strong> {% trans "Контрагент (Müqavilə tərəfi) sütunu VƏ ya ayrı Ad/Soyad sütunları" %}</li>
+                        <li><strong>{% trans "İstəyə bağlı" %}:</strong> {% trans "Yer, Telefon, Ünvan sütunları" %}</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle"></i> {% trans "1C formatı dəstəyi" %}:</h6>
+                    <p class="mb-1">{% trans "Sistem <strong>Контрагент</strong> sütunu ilə 1C ixracatlarını avtomatik idarə edir" %}:</p>
+                    <ul class="mb-0 small">
+                        <li>{% trans "Контрагент sahəsindən Ad və Soyadı avtomatik çıxarır" %}</li>
+                        <li>{% trans "\"Иванов Иван\", \"Иван Иванов\" və ya ata adı ilə tam ad formatlarını idarə edir" %}</li>
+                        <li>{% trans "Yer təqdim edilməzsə, \"Unknown\" (Naməlum) olaraq qalır" %}</li>
+                        <li>{% trans "Maliyyə sütunları (Сумма Starting balance və s.) nəzərə alınmır" %}</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> {% trans "Dəstəklənən sütun adı variantları" %}:</h6>
+                    <p class="mb-1">{% trans "Sistem bu sütun adı variantlarını avtomatik tanıyır" %}:</p>
+                    <ul class="mb-0 small">
+                        <li><strong>{% trans "Контрагент/Müqavilə tərəfi" %}:</strong> {% trans "Контрагент, Counterparty, Клиент, Client, Customer" %}</li>
+                        <li><strong>{% trans "Ad" %}:</strong> {% trans "Имя, Name, FirstName, First Name, Имя клиента" %}</li>
+                        <li><strong>{% trans "Soyad" %}:</strong> {% trans "Фамилия, Surname, LastName, Last Name, Фамилия клиента" %}</li>
+                        <li><strong>{% trans "Yer" %}:</strong> {% trans "Место, Place, Город, City, Location, Адрес, Откуда" %}</li>
+                        <li><strong>{% trans "Telefon" %}:</strong> {% trans "Телефон, Phone, Tel, Телефон клиента" %}</li>
+                        <li><strong>{% trans "Ünvan" %}:</strong> {% trans "Адрес, Address, Полный адрес, Full Address" %}</li>
+                    </ul>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.file.label }}</label>
+                        {{ form.file }}
+                        {% if form.file.errors %}
+                            <div class="text-danger">{{ form.file.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.file.help_text }}</small>
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.skip_duplicates }}
+                        <label class="form-check-label" for="{{ form.skip_duplicates.id_for_label }}">
+                            {{ form.skip_duplicates.label }}
+                        </label>
+                        {% if form.skip_duplicates.help_text %}
+                            <small class="form-text text-muted">{{ form.skip_duplicates.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.skip_empty }}
+                        <label class="form-check-label" for="{{ form.skip_empty.id_for_label }}">
+                            {{ form.skip_empty.label }}
+                        </label>
+                        {% if form.skip_empty.help_text %}
+                            <small class="form-text text-muted">{{ form.skip_empty.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'customer_list' %}" class="btn btn-secondary">{% trans "Ləğv et" %}</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> {% trans "Müştəriləri idxal et" %}
+                        </button>
+                    </div>
+                </form>
+
+                <hr>
+
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6><i class="bi bi-question-circle"></i> {% trans "Nümunə formatlar" %}:</h6>
+                        <p class="mb-2"><strong>{% trans "1C formatı (Контрагент ilə)" %}:</strong></p>
+                        <pre class="mb-3"><code>Контрагент,Сумма Starting balance,Сумма Receipt,Сумма Expense,Сумма Ending balance
+Иванов Иван,1000.00,500.00,200.00,1300.00
+Петрова Мария,2000.00,1000.00,300.00,2700.00</code></pre>
+                        <p class="mb-2"><strong>{% trans "Standart format (ayrı sütunlarla)" %}:</strong></p>
+                        <pre class="mb-0"><code>Name,Surname,Place,Phone,Address
+Иван,Иванов,Москва,+7-999-123-4567,ул. Ленина, д. 1
+Мария,Петрова,Санкт-Петербург,+7-999-765-4321,пр. Невский, д. 10</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

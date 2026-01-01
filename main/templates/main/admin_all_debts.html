@@ -1,0 +1,103 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Bütün borclar (Admin) - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center bg-warning">
+        <h5><i class="bi bi-list-ul"></i> {% trans "Bütün borclar (Admin görünüşü)" %}</h5>
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-secondary">
+            <i class="bi bi-arrow-left"></i> {% trans "Admin Paneli" %}
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="get" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "Aptekçiyə görə filtrlə" %}</label>
+                    <select name="pharmacist" class="form-select">
+                        <option value="">{% trans "Bütün aptekçilər" %}</option>
+                        {% for pharmacist in pharmacists %}
+                        <option value="{{ pharmacist.pk }}" {% if selected_pharmacist == pharmacist.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ pharmacist }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{% trans "Statusa görə filtrlə" %}</label>
+                    <select name="status" class="form-select">
+                        <option value="">{% trans "Bütün statuslar" %}</option>
+                        <option value="unpaid" {% if selected_status == 'unpaid' %}selected{% endif %}>{% trans "Ödənilməyib" %}</option>
+                        <option value="paid" {% if selected_status == 'paid' %}selected{% endif %}>{% trans "Ödənilib" %}</option>
+                        <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>{% trans "Vaxtı keçmiş" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{% trans "Axtar" %}</label>
+                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Müştəri, aptekçi adı...' %}" value="{{ search_query }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">{% trans "Filtr" %}</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "Aptekçi" %}</th>
+                        <th>{% trans "Müştəri" %}</th>
+                        <th>{% trans "Yer" %}</th>
+                        <th>{% trans "Məbləğ" %}</th>
+                        <th>{% trans "Verilmə tarixi" %}</th>
+                        <th>{% trans "Vəd tarixi" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Əməliyyatlar" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for debt in debts %}
+                    <tr>
+                        <td><strong>{{ debt.pharmacist }}</strong></td>
+                        <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
+                        <td>{{ debt.customer.place }}</td>
+                        <td>₼{{ debt.amount|floatformat:2 }}</td>
+                        <td>{{ debt.date_given }}</td>
+                        <td>
+                            {{ debt.promise_date }}
+                            {% if debt.is_overdue %}
+                                <span class="badge bg-danger ms-1">{{ debt.days_overdue }}g</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if debt.is_paid %}
+                                <span class="badge bg-success">{% trans "Ödənilib" %}</span>
+                            {% elif debt.is_overdue %}
+                                <span class="badge bg-danger">{% trans "Vaxtı keçmiş" %}</span>
+                            {% else %}
+                                <span class="badge bg-warning">{% trans "Gözləyir" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-eye"></i> {% trans "Bax" %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">{% trans "Borc tapılmadı" %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

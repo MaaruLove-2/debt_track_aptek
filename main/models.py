@@ -1,0 +1,107 @@
+from django.db import models
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.core.validators import MinValueValidator
+from django.contrib.auth.models import User
+
+
+class Pharmacist(models.Model):
+    """Model representing a pharmacist"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist_profile', verbose_name=_('İstifadəçi'), null=True, blank=True)
+    name = models.CharField(_('Ad'), max_length=100)
+    surname = models.CharField(_('Soyad'), max_length=100)
+    phone = models.CharField(_('Telefon'), max_length=20, blank=True, null=True)
+    email = models.EmailField(_('E-poçt'), blank=True, null=True)
+    created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
+
+    class Meta:
+        ordering = ['name', 'surname']
+        verbose_name = _('Aptekçi')
+        verbose_name_plural = _('Aptekçilər')
+
+    def __str__(self):
+        return f"{self.name} {self.surname}"
+
+    @property
+    def total_debt(self):
+        """Calculate total debt for this pharmacist"""
+        return sum(debt.amount for debt in self.debts.filter(is_paid=False))
+
+    @property
+    def overdue_debt_count(self):
+        """Count overdue debts for this pharmacist"""
+        today = timezone.now().date()
+        return self.debts.filter(is_paid=False, promise_date__lt=today).count()
+    
+    @property
+    def unpaid_debt_count(self):
+        """Count unpaid debts for this pharmacist"""
+        return self.debts.filter(is_paid=False).count()
+
+
+class Customer(models.Model):
+    """Model representing a customer"""
+    name = models.CharField(_('Ad'), max_length=100, blank=True, default='')
+    surname = models.CharField(_('Soyad'), max_length=100)
+    patronymic = models.CharField(_('Ata adı'), max_length=100, blank=True, null=True, help_text=_("Ata adı (отчество)"))
+    place = models.CharField(_('Yer'), max_length=200, help_text=_("Müştərinin haradan olduğu"), default='Unknown')
+    phone = models.CharField(_('Telefon'), max_length=20, blank=True, null=True)
+    address = models.TextField(_('Ünvan'), blank=True, null=True)
+    created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
+
+    class Meta:
+        ordering = ['surname', 'name']
+        unique_together = [['name', 'surname', 'patronymic', 'place']]
+        verbose_name = _('Müştəri')
+        verbose_name_plural = _('Müştərilər')
+
+    def __str__(self):
+        full_name = f"{self.surname} {self.name}"
+        if self.patronymic:
+            full_name += f" {self.patronymic}"
+        return f"{full_name} ({self.place})"
+
+
+class Debt(models.Model):
+    """Model representing a debt record"""
+    pharmacist = models.ForeignKey(Pharmacist, on_delete=models.CASCADE, related_name='debts', verbose_name=_('Aptekçi'))
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='debts', verbose_name=_('Müştəri'))
+    amount = models.DecimalField(_('Məbləğ'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    date_given = models.DateField(_('Verilmə tarixi'), default=timezone.now, help_text=_("Borcun verildiyi tarix"))
+    promise_date = models.DateField(_('Vəd tarixi'), help_text=_("Müştərinin pulu qaytarmaq üçün vəd etdiyi tarix"))
+    description = models.TextField(_('Təsvir'), blank=True, null=True, help_text=_("Borcla bağlı əlavə qeydlər"))
+    is_paid = models.BooleanField(_('Ödənilib'), default=False)
+    paid_date = models.DateField(_('Ödəniş tarixi'), blank=True, null=True)
+    created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Yenilənmə tarixi'), auto_now=True)
+
+    class Meta:
+        ordering = ['-date_given', '-created_at']
+        verbose_name = _('Borc')
+        verbose_name_plural = _('Borclar')
+
+    def __str__(self):
+        status = _("Ödənilib") if self.is_paid else _("Ödənilməyib")
+        return f"{self.customer} - {self.amount} ({status})"
+
+    @property
+    def is_overdue(self):
+        """Check if the debt is overdue"""
+        if self.is_paid:
+            return False
+        today = timezone.now().date()
+        return self.promise_date < today
+
+    @property
+    def days_overdue(self):
+        """Calculate days overdue"""
+        if self.is_paid or not self.is_overdue:
+            return 0
+        today = timezone.now().date()
+        return (today - self.promise_date).days
+
+    def mark_as_paid(self):
+        """Mark debt as paid"""
+        self.is_paid = True
+        self.paid_date = timezone.now().date()
+        self.save()

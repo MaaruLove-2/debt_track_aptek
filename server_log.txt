@@ -1,0 +1,1 @@
+01/01/2026 23:00:44 - Server started with command: pythonw.exe manage.py runserver 0.0.0.0:8000

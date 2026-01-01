@@ -1,0 +1,261 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Borc əlavə et - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-plus-circle"></i> {% trans "Yeni borc əlavə et" %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="debtForm">
+                    {% csrf_token %}
+                    
+                    <!-- Customer Selection Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="bi bi-person"></i> {% trans "Müştəri seçimi" %}</h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- Search Existing Customer -->
+                            <div class="mb-3">
+                                <label class="form-label">{% trans "Mövcud müştəri axtar" %}</label>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="customerSearch" 
+                                           placeholder="{% trans 'Müştəri adı, soyadı, yer və ya telefon...' %}"
+                                           autocomplete="off">
+                                    <button type="button" class="btn btn-outline-secondary" id="searchBtn">
+                                        <i class="bi bi-search"></i> {% trans "Axtar" %}
+                                    </button>
+                                </div>
+                                <div id="searchResults" class="mt-2" style="display: none;">
+                                    <div class="list-group" id="customerResults"></div>
+                                </div>
+                                <div id="selectedCustomer" class="mt-2" style="display: none;">
+                                    <div class="alert alert-success">
+                                        <strong>{% trans "Seçilmiş müştəri" %}:</strong> <span id="selectedCustomerName"></span>
+                                        <button type="button" class="btn btn-sm btn-outline-danger float-end" id="clearSelection">
+                                            <i class="bi bi-x"></i> {% trans "Təmizlə" %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center my-3">
+                                <strong>{% trans "VƏ YA" %}</strong>
+                            </div>
+                            
+                            <!-- Create New Customer (Simplified) -->
+                            <div class="mb-3">
+                                <label class="form-label">{% trans "Yeni müştəri əlavə et" %}</label>
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        {{ simplified_form.full_name }}
+                                        <small class="form-text text-muted">{{ simplified_form.full_name.help_text }}</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{ simplified_form.phone }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <input type="hidden" name="customer_id" id="customer_id" value="">
+                            <input type="hidden" name="create_new_customer" id="create_new_customer" value="false">
+                        </div>
+                    </div>
+                    
+                    <!-- Debt Details Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="bi bi-cash-coin"></i> {% trans "Borc məlumatları" %}</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">{% trans "Məbləğ" %} *</label>
+                                {{ form.amount }}
+                                {% if form.amount.errors %}
+                                    <div class="text-danger">{{ form.amount.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{% trans "Verilmə tarixi" %} *</label>
+                                    {{ form.date_given }}
+                                    {% if form.date_given.errors %}
+                                        <div class="text-danger">{{ form.date_given.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{% trans "Vəd tarixi" %} *</label>
+                                    {{ form.promise_date }}
+                                    {% if form.promise_date.errors %}
+                                        <div class="text-danger">{{ form.promise_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{% trans "Təsvir" %}</label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger">{{ form.description.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'debt_list' %}" class="btn btn-secondary">{% trans "Ləğv et" %}</a>
+                        <button type="submit" class="btn btn-primary">{% trans "Borc əlavə et" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('customerSearch');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchResults = document.getElementById('searchResults');
+    const customerResults = document.getElementById('customerResults');
+    const selectedCustomer = document.getElementById('selectedCustomer');
+    const selectedCustomerName = document.getElementById('selectedCustomerName');
+    const customerIdInput = document.getElementById('customer_id');
+    const createNewCustomerInput = document.getElementById('create_new_customer');
+    const clearSelectionBtn = document.getElementById('clearSelection');
+    const fullNameInput = document.querySelector('input[name="full_name"]');
+    const phoneInput = document.querySelector('input[name="phone"]');
+    
+    let searchTimeout;
+    
+    // Search as user types
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length >= 2) {
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 300);
+        } else {
+            searchResults.style.display = 'none';
+            customerResults.innerHTML = '';
+        }
+    });
+    
+    // Search button click
+    searchBtn.addEventListener('click', function() {
+        const query = searchInput.value.trim();
+        if (query.length >= 2) {
+            performSearch(query);
+        }
+    });
+    
+    // Perform search
+    function performSearch(query) {
+        fetch(`{% url 'customer_search_api' %}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                customerResults.innerHTML = '';
+                if (data.customers && data.customers.length > 0) {
+                    data.customers.forEach(customer => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.innerHTML = `
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${customer.display}</h6>
+                            </div>
+                            <p class="mb-1">
+                                <small>${customer.phone ? '📞 ' + customer.phone : ''}</small>
+                            </p>
+                        `;
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            selectCustomer(customer);
+                        });
+                        customerResults.appendChild(item);
+                    });
+                    searchResults.style.display = 'block';
+                } else {
+                    customerResults.innerHTML = '<div class="list-group-item text-muted">{% trans "Müştəri tapılmadı" %}</div>';
+                    searchResults.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+            });
+    }
+    
+    // Select customer
+    function selectCustomer(customer) {
+        customerIdInput.value = customer.id;
+        createNewCustomerInput.value = 'false';
+        selectedCustomerName.textContent = customer.display;
+        selectedCustomer.style.display = 'block';
+        searchResults.style.display = 'none';
+        searchInput.value = '';
+        
+        // Clear and disable new customer form
+        fullNameInput.value = '';
+        phoneInput.value = '';
+        fullNameInput.removeAttribute('required');
+        phoneInput.removeAttribute('required');
+        fullNameInput.disabled = true;
+        phoneInput.disabled = true;
+    }
+    
+    // Clear selection
+    clearSelectionBtn.addEventListener('click', function() {
+        customerIdInput.value = '';
+        createNewCustomerInput.value = 'false';
+        selectedCustomer.style.display = 'none';
+        searchInput.value = '';
+        
+        // Re-enable new customer form
+        fullNameInput.disabled = false;
+        phoneInput.disabled = false;
+    });
+    
+    // When user starts typing in full_name, clear customer selection
+    fullNameInput.addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+            customerIdInput.value = '';
+            createNewCustomerInput.value = 'true';
+            selectedCustomer.style.display = 'none';
+            // Re-enable fields
+            fullNameInput.disabled = false;
+            phoneInput.disabled = false;
+        }
+    });
+    
+    // Form submission validation
+    document.getElementById('debtForm').addEventListener('submit', function(e) {
+        const customerId = customerIdInput.value;
+        const fullName = fullNameInput.value.trim();
+        
+        if (!customerId && !fullName) {
+            e.preventDefault();
+            alert('{% trans "Zəhmət olmasa müştəri seçin və ya yenisini yaradın" %}');
+            return false;
+        }
+        
+        if (customerId) {
+            // Existing customer selected - make sure new customer fields are not required
+            createNewCustomerInput.value = 'false';
+            fullNameInput.removeAttribute('required');
+            phoneInput.removeAttribute('required');
+        } else if (fullName) {
+            // Creating new customer
+            createNewCustomerInput.value = 'true';
+        }
+    });
+});
+</script>
+{% endblock %}

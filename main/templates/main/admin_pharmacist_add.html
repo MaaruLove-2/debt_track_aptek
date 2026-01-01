@@ -1,0 +1,83 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Yeni aptekçi əlavə et (Admin) - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-person-plus"></i> {% trans "Yeni aptekçi və istifadəçi hesabı yarat" %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <h6 class="mb-3">{% trans "İstifadəçi məlumatları" %}</h6>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "İstifadəçi adı" %} *</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                            <div class="text-danger">{{ form.username.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.username.help_text }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Parol" %} *</label>
+                        {{ form.password }}
+                        {% if form.password.errors %}
+                            <div class="text-danger">{{ form.password.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{{ form.password.help_text }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Parolu təsdiqlə" %} *</label>
+                        {{ form.password_confirm }}
+                        {% if form.password_confirm.errors %}
+                            <div class="text-danger">{{ form.password_confirm.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h6 class="mb-3">{% trans "Şəxsi məlumatlar" %}</h6>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Ad" %} *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Soyad" %} *</label>
+                        {{ form.surname }}
+                        {% if form.surname.errors %}
+                            <div class="text-danger">{{ form.surname.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Telefon" %}</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                            <div class="text-danger">{{ form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "E-poçt" %}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger">{{ form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'admin_pharmacist_list' %}" class="btn btn-secondary">{% trans "Ləğv et" %}</a>
+                        <button type="submit" class="btn btn-success">{% trans "Aptekçi və hesab yarat" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

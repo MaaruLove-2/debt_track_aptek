@@ -1,0 +1,192 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Admin Paneli - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning">
+                <h4><i class="bi bi-shield-check"></i> {% trans "Admin Paneli" %}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card total">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Ümumi ödənilməmiş borclar" %}</h5>
+                <h2 class="text-primary">{{ total_debts }}</h2>
+                <p class="text-muted mb-0">{% trans "Məbləğ" %}: ₼{{ total_amount|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card overdue">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Vaxtı keçmiş borclar" %}</h5>
+                <h2 class="text-danger">{{ overdue_debts }}</h2>
+                <p class="text-muted mb-0">{% trans "Məbləğ" %}: ₼{{ overdue_amount|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Sürətli əməliyyatlar" %}</h5>
+                <a href="{% url 'admin_all_debts' %}" class="btn btn-primary me-2">
+                    <i class="bi bi-list-ul"></i> {% trans "Bütün borclar" %}
+                </a>
+                <a href="{% url 'admin_pharmacist_list' %}" class="btn btn-success me-2">
+                    <i class="bi bi-people"></i> {% trans "Aptekçiləri idarə et" %}
+                </a>
+                <a href="{% url 'admin_pharmacist_add' %}" class="btn btn-info">
+                    <i class="bi bi-person-plus"></i> {% trans "Yeni aptekçi əlavə et" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-people"></i> {% trans "Aptekçilərə baxış" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Aptekçi" %}</th>
+                                <th>{% trans "İstifadəçi adı" %}</th>
+                                <th>{% trans "Borclar" %}</th>
+                                <th>{% trans "Ümumi məbləğ" %}</th>
+                                <th>{% trans "Vaxtı keçmiş" %}</th>
+                                <th>{% trans "Əməliyyatlar" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in pharmacist_stats %}
+                            <tr>
+                                <td>
+                                    <strong>{{ stat.pharmacist.name }} {{ stat.pharmacist.surname }}</strong>
+                                </td>
+                                <td>
+                                    {% if stat.has_user %}
+                                        <span class="badge bg-success">{{ stat.pharmacist.user.username }}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{% trans "Hesab yoxdur" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-info">{{ stat.debt_count }}</span></td>
+                                <td>₼{{ stat.total_debt|floatformat:2 }}</td>
+                                <td>
+                                    {% if stat.overdue_count > 0 %}
+                                        <span class="badge bg-danger">{{ stat.overdue_count }}</span>
+                                    {% else %}
+                                        <span class="badge bg-success">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'admin_pharmacist_detail' stat.pharmacist.pk %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> {% trans "Bax" %}
+                                    </a>
+                                    {% if stat.has_user %}
+                                    <a href="{% url 'admin_pharmacist_change_password' stat.pharmacist.pk %}" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-key"></i> {% trans "Parol dəyiş" %}
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">{% trans "Hələ aptekçi yoxdur" %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> {% trans "Son borclar (Bütün aptekçilər)" %}</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_debts %}
+                <div class="list-group">
+                    {% for debt in recent_debts %}
+                    <a href="{% url 'debt_detail' debt.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ debt.customer.name }} {{ debt.customer.surname }}</h6>
+                            <span class="badge {% if debt.is_overdue %}bg-danger{% else %}bg-warning{% endif %}">
+                                ₼{{ debt.amount|floatformat:2 }}
+                            </span>
+                        </div>
+                        <p class="mb-1">
+                            <small>{% trans "Aptekçi" %}: {{ debt.pharmacist }}</small><br>
+                            <small>{% trans "Vəd tarixi" %}: {{ debt.promise_date }}</small>
+                            {% if debt.is_overdue %}
+                                <span class="badge bg-danger ms-2">{{ debt.days_overdue }} {% trans "gün vaxtı keçib" %}</span>
+                            {% endif %}
+                        </p>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">{% trans "Son borc yoxdur" %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="bi bi-exclamation-triangle"></i> {% trans "Vaxtı keçmiş borclar" %}</h5>
+            </div>
+            <div class="card-body">
+                {% if overdue_debts_list %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Müştəri" %}</th>
+                                <th>{% trans "Aptekçi" %}</th>
+                                <th>{% trans "Məbləğ" %}</th>
+                                <th>{% trans "Gün" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for debt in overdue_debts_list %}
+                            <tr>
+                                <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
+                                <td><small>{{ debt.pharmacist }}</small></td>
+                                <td>₼{{ debt.amount|floatformat:2 }}</td>
+                                <td><span class="badge bg-danger">{{ debt.days_overdue }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="{% url 'admin_all_debts' %}?status=overdue" class="btn btn-danger btn-sm mt-2">{% trans "Hamısına bax" %}</a>
+                {% else %}
+                <p class="text-muted text-center">{% trans "Vaxtı keçmiş borc yoxdur" %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

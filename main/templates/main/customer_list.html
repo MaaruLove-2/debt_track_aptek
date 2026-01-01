@@ -1,0 +1,63 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Müştərilər - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="bi bi-people"></i> {% trans "Müştərilər" %}</h5>
+        <div>
+            <a href="{% url 'customer_import' %}" class="btn btn-success me-2">
+                <i class="bi bi-upload"></i> {% trans "1C-dən idxal et" %}
+            </a>
+            <a href="{% url 'customer_add' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> {% trans "Müştəri əlavə et" %}
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get" class="mb-4">
+            <div class="row">
+                <div class="col-md-8">
+                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Ad, soyad və ya yerə görə axtar...' %}" value="{{ search_query }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">{% trans "Axtar" %}</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "Soyad" %}</th>
+                        <th>{% trans "Ad" %}</th>
+                        <th>{% trans "Ata adı" %}</th>
+                        <th>{% trans "Yer" %}</th>
+                        <th>{% trans "Telefon" %}</th>
+                        <th>{% trans "Ünvan" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td>{{ customer.surname }}</td>
+                        <td>{{ customer.name|default:"-" }}</td>
+                        <td>{{ customer.patronymic|default:"-" }}</td>
+                        <td>{{ customer.place }}</td>
+                        <td>{{ customer.phone|default:"-" }}</td>
+                        <td>{{ customer.address|default:"-"|truncatewords:10 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">{% trans "Müştəri tapılmadı." %} <a href="{% url 'customer_add' %}">{% trans "Birini əlavə et" %}</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

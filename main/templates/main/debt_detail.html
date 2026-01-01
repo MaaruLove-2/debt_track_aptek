@@ -1,0 +1,84 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Borc detalları - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-receipt"></i> {% trans "Borc detalları" %}</h5>
+                <a href="{% url 'debt_list' %}" class="btn btn-sm btn-secondary">{% trans "Siyahıya qayıt" %}</a>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>{% trans "Müştəri" %}:</strong><br>
+                        {{ debt.customer.name }} {{ debt.customer.surname }}<br>
+                        <small class="text-muted">{{ debt.customer.place }}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>{% trans "Aptekçi" %}:</strong><br>
+                        {{ debt.pharmacist }}
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>{% trans "Məbləğ" %}:</strong><br>
+                        <h4 class="text-primary">₼{{ debt.amount|floatformat:2 }}</h4>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>{% trans "Status" %}:</strong><br>
+                        {% if debt.is_paid %}
+                            <span class="badge bg-success fs-6">{% trans "Ödənilib" %}</span>
+                            <br><small class="text-muted">{% trans "Ödənilmə tarixi" %}: {{ debt.paid_date }}</small>
+                        {% elif debt.is_overdue %}
+                            <span class="badge bg-danger fs-6">{% trans "Vaxtı keçmiş" %}</span>
+                            <br><small class="text-danger">{{ debt.days_overdue }} {% trans "gün vaxtı keçib" %}</small>
+                        {% else %}
+                            <span class="badge bg-warning fs-6">{% trans "Gözləyir" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>{% trans "Verilmə tarixi" %}:</strong><br>
+                        {{ debt.date_given }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>{% trans "Vəd tarixi" %}:</strong><br>
+                        {{ debt.promise_date }}
+                        {% if debt.is_overdue %}
+                            <span class="badge bg-danger ms-1">{{ debt.days_overdue }} {% trans "gün vaxtı keçib" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if debt.description %}
+                <hr>
+                <div class="mb-3">
+                    <strong>{% trans "Təsvir" %}:</strong><br>
+                    <p>{{ debt.description }}</p>
+                </div>
+                {% endif %}
+                <hr>
+                <div class="d-flex gap-2">
+                    {% if not debt.is_paid %}
+                    <form method="post" action="{% url 'debt_mark_paid' debt.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success" onclick="return confirm('{% trans "Bu borcu ödənildi kimi işarələmək istəyirsiniz?" %}')">
+                            <i class="bi bi-check-circle"></i> {% trans "Ödənildi kimi işarələ" %}
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'debt_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> {% trans "Siyahıya qayıt" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

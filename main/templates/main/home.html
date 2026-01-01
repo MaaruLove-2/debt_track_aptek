@@ -1,0 +1,118 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Ana səhifə - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card total">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Ümumi ödənilməmiş borclar" %}</h5>
+                <h2 class="text-primary">{{ total_debts }}</h2>
+                <p class="text-muted mb-0">{% trans "Məbləğ" %}: ₼{{ total_amount|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card overdue">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Vaxtı keçmiş borclar" %}</h5>
+                <h2 class="text-danger">{{ overdue_debts }}</h2>
+                <p class="text-muted mb-0">{% trans "Məbləğ" %}: ₼{{ overdue_amount|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Sürətli əməliyyatlar" %}</h5>
+                <a href="{% url 'debt_add' %}" class="btn btn-primary me-2">
+                    <i class="bi bi-plus-circle"></i> {% trans "Yeni borc əlavə et" %}
+                </a>
+                <a href="{% url 'reminders' %}" class="btn btn-warning me-2">
+                    <i class="bi bi-bell"></i> {% trans "Xatırlatmalara bax" %}
+                </a>
+                <a href="{% url 'pharmacist_detail' pharmacist.pk %}" class="btn btn-info">
+                    <i class="bi bi-person-badge"></i> {% trans "Profilim" %}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> {% trans "Son borclar" %}</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_debts %}
+                <div class="list-group">
+                    {% for debt in recent_debts %}
+                    <a href="{% url 'debt_detail' debt.pk %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ debt.customer.name }} {{ debt.customer.surname }}</h6>
+                            <span class="badge {% if debt.is_overdue %}bg-danger{% else %}bg-warning{% endif %}">
+                                ₼{{ debt.amount|floatformat:2 }}
+                            </span>
+                        </div>
+                        <p class="mb-1">
+                            <small>{% trans "Vəd tarixi" %}: {{ debt.promise_date }}</small>
+                            {% if debt.is_overdue %}
+                                <span class="badge bg-danger ms-2">{{ debt.days_overdue }} {% trans "gün vaxtı keçib" %}</span>
+                            {% endif %}
+                        </p>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">{% trans "Son borc yoxdur" %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if overdue_debts_list %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="bi bi-exclamation-triangle"></i> {% trans "Vaxtı keçmiş borclar - Tədbir tələb olunur" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Müştəri" %}</th>
+                                <th>{% trans "Məbləğ" %}</th>
+                                <th>{% trans "Vəd tarixi" %}</th>
+                                <th>{% trans "Vaxtı keçmiş günlər" %}</th>
+                                <th>{% trans "Əməliyyat" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for debt in overdue_debts_list %}
+                            <tr>
+                                <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
+                                <td>₼{{ debt.amount|floatformat:2 }}</td>
+                                <td>{{ debt.promise_date }}</td>
+                                <td><span class="badge bg-danger">{{ debt.days_overdue }}</span></td>
+                                <td>
+                                    <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-sm btn-primary">{% trans "Bax" %}</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <a href="{% url 'reminders' %}" class="btn btn-danger mt-2">{% trans "Bütün vaxtı keçmiş borclara bax" %}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
