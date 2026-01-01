@@ -76,6 +76,9 @@
                         <td>
                             {% if debt.is_paid %}
                                 <span class="badge bg-success">{% trans "Ödənilib" %}</span>
+                                {% if debt.payment_method %}
+                                <br><small class="text-muted">{{ debt.get_payment_method_display_az }}</small>
+                                {% endif %}
                             {% elif debt.is_overdue %}
                                 <span class="badge bg-danger">{% trans "Vaxtı keçmiş" %}</span>
                             {% else %}

@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.db.models import Sum, Q
 from .models import Pharmacist, Customer, Debt
-from .forms import PharmacistForm, CustomerForm, DebtForm, CustomerImportForm, SimplifiedCustomerForm
+from .forms import PharmacistForm, CustomerForm, DebtForm, DebtEditForm, CustomerImportForm, SimplifiedCustomerForm
 from .utils import parse_csv_file, parse_excel_file, import_customers_from_data
 
 
@@ -120,6 +120,10 @@ def home(request):
 @login_required
 def debt_list(request):
     """List all debts with filtering options"""
+    # If admin/staff, redirect to admin all debts
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('admin_all_debts')
+    
     pharmacist = get_current_pharmacist(request)
     if not pharmacist:
         messages.error(request, _('Aptekçi profili tapılmadı.'))
@@ -161,6 +165,11 @@ def debt_list(request):
 @login_required
 def debt_add(request):
     """Add a new debt with simplified customer creation"""
+    # Admin/staff users need to select a pharmacist, so redirect to admin dashboard
+    if request.user.is_staff or request.user.is_superuser:
+        messages.info(request, _('Admin istifadəçiləri borc əlavə etmək üçün aptekçi seçməlidir. Admin paneldən istifadə edin.'))
+        return redirect('admin_dashboard')
+    
     pharmacist = get_current_pharmacist(request)
     if not pharmacist:
         messages.error(request, _('Aptekçi profili tapılmadı.'))
@@ -226,11 +235,19 @@ def debt_add(request):
             
             # Create debt with this customer
             try:
+                from datetime import datetime as dt
+                date_given_str = request.POST.get('date_given')
+                # Parse datetime from form (format: YYYY-MM-DDTHH:mm)
+                if date_given_str:
+                    date_given = dt.strptime(date_given_str, '%Y-%m-%dT%H:%M')
+                else:
+                    date_given = timezone.now()
+                
                 debt = Debt(
                     pharmacist=pharmacist,
                     customer=customer,
                     amount=request.POST.get('amount'),
-                    date_given=request.POST.get('date_given'),
+                    date_given=date_given,
                     promise_date=request.POST.get('promise_date'),
                     description=request.POST.get('description', '')
                 )
@@ -256,6 +273,11 @@ def debt_add(request):
 @login_required
 def debt_detail(request, pk):
     """View details of a specific debt"""
+    # Admin/staff can view any debt
+    if request.user.is_staff or request.user.is_superuser:
+        debt = get_object_or_404(Debt, pk=pk)
+        return render(request, 'main/debt_detail.html', {'debt': debt, 'is_admin': True})
+    
     pharmacist = get_current_pharmacist(request)
     if not pharmacist:
         messages.error(request, _('Aptekçi profili tapılmadı.'))
@@ -263,24 +285,59 @@ def debt_detail(request, pk):
         return redirect('login')
     
     debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
-    return render(request, 'main/debt_detail.html', {'debt': debt})
+    return render(request, 'main/debt_detail.html', {'debt': debt, 'is_admin': False})
+
+
+def is_admin(user):
+    """Check if user is admin/staff"""
+    return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+@login_required
+@user_passes_test(is_admin)
+def debt_edit(request, pk):
+    """Edit a debt - only admins can edit"""
+    debt = get_object_or_404(Debt, pk=pk)
+    
+    if request.method == 'POST':
+        form = DebtEditForm(request.POST, instance=debt, user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _('Borc uğurla yeniləndi!'))
+            return redirect('debt_detail', pk=pk)
+    else:
+        form = DebtEditForm(instance=debt, user=request.user)
+    
+    return render(request, 'main/debt_edit.html', {'form': form, 'debt': debt})
 
 
 @login_required
 def debt_mark_paid(request, pk):
-    """Mark a debt as paid"""
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
-        auth_logout(request)
-        return redirect('login')
+    """Mark a debt as paid with payment method"""
+    # Admin/staff can mark any debt as paid
+    if request.user.is_staff or request.user.is_superuser:
+        debt = get_object_or_404(Debt, pk=pk)
+    else:
+        pharmacist = get_current_pharmacist(request)
+        if not pharmacist:
+            messages.error(request, _('Aptekçi profili tapılmadı.'))
+            auth_logout(request)
+            return redirect('login')
+        debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
     
-    debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
     if request.method == 'POST':
-        debt.mark_as_paid()
-        messages.success(request, _('Borc ödənildi kimi işarələndi!'))
+        payment_method = request.POST.get('payment_method')
+        if not payment_method:
+            messages.error(request, _('Zəhmət olmasa ödəniş üsulunu seçin.'))
+            return redirect('debt_detail', pk=pk)
+        
+        debt.mark_as_paid(payment_method=payment_method)
+        payment_method_display = debt.get_payment_method_display_az()
+        messages.success(request, _('Borc ödənildi kimi işarələndi! Ödəniş üsulu: {method}').format(method=payment_method_display))
         return redirect('debt_detail', pk=pk)
-    return redirect('debt_detail', pk=pk)
+    
+    # If GET request, show payment method selection form
+    return render(request, 'main/debt_mark_paid.html', {'debt': debt})
 
 
 @login_required
@@ -345,11 +402,13 @@ def pharmacist_add(request):
 @login_required
 def customer_list(request):
     """List all customers (shared across all pharmacists)"""
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
-        auth_logout(request)
-        return redirect('login')
+    # Admin/staff can access customer list without pharmacist profile
+    if not (request.user.is_staff or request.user.is_superuser):
+        pharmacist = get_current_pharmacist(request)
+        if not pharmacist:
+            messages.error(request, _('Aptekçi profili tapılmadı.'))
+            auth_logout(request)
+            return redirect('login')
     
     customers = Customer.objects.all()
     
@@ -374,11 +433,13 @@ def customer_list(request):
 @login_required
 def customer_add(request):
     """Add a new customer (shared across all pharmacists)"""
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
-        auth_logout(request)
-        return redirect('login')
+    # Admin/staff can add customers without pharmacist profile
+    if not (request.user.is_staff or request.user.is_superuser):
+        pharmacist = get_current_pharmacist(request)
+        if not pharmacist:
+            messages.error(request, _('Aptekçi profili tapılmadı.'))
+            auth_logout(request)
+            return redirect('login')
     
     if request.method == 'POST':
         form = CustomerForm(request.POST)
@@ -395,6 +456,21 @@ def customer_add(request):
 @login_required
 def reminders(request):
     """View all overdue debts (reminders) for current pharmacist"""
+    # If admin/staff, show all overdue debts
+    if request.user.is_staff or request.user.is_superuser:
+        today = timezone.now().date()
+        overdue_debts = Debt.objects.filter(
+            is_paid=False,
+            promise_date__lte=today
+        ).select_related('pharmacist', 'customer').order_by('promise_date')
+        
+        context = {
+            'pharmacist': None,
+            'overdue_debts': overdue_debts,
+            'is_admin': True,
+        }
+        return render(request, 'main/reminders.html', context)
+    
     pharmacist = get_current_pharmacist(request)
     if not pharmacist:
         messages.error(request, _('Aptekçi profili tapılmadı.'))
@@ -411,6 +487,7 @@ def reminders(request):
     context = {
         'pharmacist': pharmacist,
         'overdue_debts': overdue_debts,
+        'is_admin': False,
     }
     
     return render(request, 'main/reminders.html', context)
@@ -726,6 +803,99 @@ def admin_pharmacist_change_password(request, pk):
             return redirect('admin_pharmacist_list')
     
     return render(request, 'main/admin_pharmacist_change_password.html', {'pharmacist': pharmacist})
+
+
+@login_required
+def todays_operations(request):
+    """View operations for a specific date (defaults to today)"""
+    today = timezone.now().date()
+    
+    # Get selected date from GET parameter, default to today
+    selected_date_str = request.GET.get('date', '')
+    if selected_date_str:
+        try:
+            # Parse date from YYYY-MM-DD format
+            from datetime import datetime as dt
+            selected_date = dt.strptime(selected_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            selected_date = today
+    else:
+        selected_date = today
+    
+    # If admin/staff, show all operations from all pharmacists for selected date
+    if request.user.is_staff or request.user.is_superuser:
+        # Show debts created on this date OR paid on this date
+        # Use date range for SQLite compatibility
+        from datetime import datetime, timedelta
+        start_datetime = timezone.make_aware(datetime.combine(selected_date, datetime.min.time()))
+        end_datetime = start_datetime + timedelta(days=1)
+        
+        operations = Debt.objects.filter(
+            Q(date_given__gte=start_datetime, date_given__lt=end_datetime) | 
+            Q(paid_date__gte=start_datetime, paid_date__lt=end_datetime)
+        ).select_related('pharmacist', 'customer').order_by('-date_given', '-id')
+        
+        # Statistics
+        total_count = operations.count()
+        total_amount = operations.aggregate(total=Sum('amount'))['total'] or 0
+        paid_count = operations.filter(is_paid=True).count()
+        unpaid_count = operations.filter(is_paid=False).count()
+        paid_today_count = operations.filter(is_paid=True, paid_date__gte=start_datetime, paid_date__lt=end_datetime).count()
+        
+        context = {
+            'operations': operations,
+            'selected_date': selected_date,
+            'today': today,
+            'total_count': total_count,
+            'total_amount': total_amount,
+            'paid_count': paid_count,
+            'unpaid_count': unpaid_count,
+            'paid_today_count': paid_today_count,
+            'is_admin': True,
+        }
+        return render(request, 'main/todays_operations.html', context)
+    
+    # For regular pharmacists, show only their operations for selected date
+    pharmacist = get_current_pharmacist(request)
+    if not pharmacist:
+        messages.error(request, _('Aptekçi profili tapılmadı.'))
+        auth_logout(request)
+        return redirect('login')
+    
+    # Show debts created on this date OR paid on this date
+    # Use date range for SQLite compatibility
+    from datetime import datetime, timedelta
+    start_datetime = timezone.make_aware(datetime.combine(selected_date, datetime.min.time()))
+    end_datetime = start_datetime + timedelta(days=1)
+    
+    operations = Debt.objects.filter(
+        pharmacist=pharmacist
+    ).filter(
+        Q(date_given__gte=start_datetime, date_given__lt=end_datetime) | 
+        Q(paid_date__gte=start_datetime, paid_date__lt=end_datetime)
+    ).select_related('pharmacist', 'customer').order_by('-date_given', '-id')
+    
+    # Statistics
+    total_count = operations.count()
+    total_amount = operations.aggregate(total=Sum('amount'))['total'] or 0
+    paid_count = operations.filter(is_paid=True).count()
+    unpaid_count = operations.filter(is_paid=False).count()
+    paid_today_count = operations.filter(is_paid=True, paid_date__gte=start_datetime, paid_date__lt=end_datetime).count()
+    
+    context = {
+        'pharmacist': pharmacist,
+        'operations': operations,
+        'selected_date': selected_date,
+        'today': today,
+        'total_count': total_count,
+        'total_amount': total_amount,
+        'paid_count': paid_count,
+        'unpaid_count': unpaid_count,
+        'paid_today_count': paid_today_count,
+        'is_admin': False,
+    }
+    
+    return render(request, 'main/todays_operations.html', context)
 
 
 @login_required

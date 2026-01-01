@@ -65,6 +65,9 @@
                         <td>
                             {% if debt.is_paid %}
                                 <span class="badge bg-success">{% trans "Ödənilib" %}</span>
+                                {% if debt.payment_method %}
+                                <br><small class="text-muted">{{ debt.get_payment_method_display_az }}</small>
+                                {% endif %}
                             {% elif debt.is_overdue %}
                                 <span class="badge bg-danger">{% trans "Vaxtı keçmiş" %}</span>
                             {% else %}
@@ -72,9 +75,16 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-sm btn-primary">
-                                <i class="bi bi-eye"></i> {% trans "Bax" %}
-                            </a>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i> {% trans "Bax" %}
+                                </a>
+                                {% if user.is_staff or user.is_superuser %}
+                                <a href="{% url 'debt_edit' debt.pk %}" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-pencil-square"></i> {% trans "Redaktə" %}
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

@@ -8,6 +8,7 @@ urlpatterns = [
     path('debts/', views.debt_list, name='debt_list'),
     path('debts/add/', views.debt_add, name='debt_add'),
     path('debts/<int:pk>/', views.debt_detail, name='debt_detail'),
+    path('debts/<int:pk>/edit/', views.debt_edit, name='debt_edit'),
     path('debts/<int:pk>/mark-paid/', views.debt_mark_paid, name='debt_mark_paid'),
     path('pharmacists/', views.pharmacist_list, name='pharmacist_list'),
     path('pharmacists/add/', views.pharmacist_add, name='pharmacist_add'),
@@ -17,6 +18,7 @@ urlpatterns = [
     path('customers/import/', views.customer_import, name='customer_import'),
     path('api/customers/search/', views.customer_search_api, name='customer_search_api'),
     path('reminders/', views.reminders, name='reminders'),
+    path('todays-operations/', views.todays_operations, name='todays_operations'),
     # Admin URLs (using 'manage' prefix to avoid conflict with Django's /admin/)
     path('manage/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('manage/debts/', views.admin_all_debts, name='admin_all_debts'),

@@ -3,25 +3,108 @@
 
 {% block title %}{% trans "Borc əlavə et - Aptek Borc İzləyicisi" %}{% endblock %}
 
+{% block extra_js %}
+<style>
+    .debt-add-container {
+        background: white;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+    .debt-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .debt-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 1.5rem;
+    }
+    .section-card {
+        border: none;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .section-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .section-card.customer-section .card-header {
+        background: linear-gradient(135deg, #667eea 0%,rgb(209, 205, 214) 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+    }
+    .section-card.debt-section .card-header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+    }
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: transform 0.2s;
+    }
+    .btn-primary:hover {
+        transform: scale(1.05);
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    .btn-secondary {
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+    }
+    .alert-success {
+        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+        border: none;
+        border-radius: 8px;
+        color: #155724;
+    }
+    .list-group-item {
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s;
+    }
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+    .divider-text {
+        color: #667eea;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-md-10 offset-md-1">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="bi bi-plus-circle"></i> {% trans "Yeni borc əlavə et" %}</h5>
-            </div>
-            <div class="card-body">
+<div class="debt-add-container">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card debt-card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-plus-circle-fill"></i> {% trans "Yeni borc əlavə et" %}</h4>
+                </div>
+                <div class="card-body" style="background:rgb(219, 227, 236);">
                 <form method="post" id="debtForm">
                     {% csrf_token %}
                     
                     <!-- Customer Selection Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="bi bi-person"></i> {% trans "Müştəri seçimi" %}</h6>
+                    <div class="card section-card customer-section">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-person-fill"></i> {% trans "Müştəri seçimi" %}</h6>
                         </div>
                         <div class="card-body">
                             <!-- Search Existing Customer -->
-                            <div class="mb-3">
+                            <div class="mb-3" >
                                 <label class="form-label">{% trans "Mövcud müştəri axtar" %}</label>
                                 <div class="input-group">
                                     <input type="text" 
@@ -47,7 +130,7 @@
                             </div>
                             
                             <div class="text-center my-3">
-                                <strong>{% trans "VƏ YA" %}</strong>
+                                <span class="divider-text">━━━ {% trans "VƏ YA" %} ━━━</span>
                             </div>
                             
                             <!-- Create New Customer (Simplified) -->
@@ -56,7 +139,7 @@
                                 <div class="row">
                                     <div class="col-md-8">
                                         {{ simplified_form.full_name }}
-                                        <small class="form-text text-muted">{{ simplified_form.full_name.help_text }}</small>
+                                        <h4 class="form-text text-muted">{{ simplified_form.full_name.help_text }}</small>
                                     </div>
                                     <div class="col-md-4">
                                         {{ simplified_form.phone }}
@@ -70,11 +153,11 @@
                     </div>
                     
                     <!-- Debt Details Section -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
+                    <div class="card section-card debt-section">
+                        <div class="card-header">
                             <h6 class="mb-0"><i class="bi bi-cash-coin"></i> {% trans "Borc məlumatları" %}</h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" style="background: white;">
                             <div class="mb-3">
                                 <label class="form-label">{% trans "Məbləğ" %} *</label>
                                 {{ form.amount }}
@@ -84,18 +167,20 @@
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">{% trans "Verilmə tarixi" %} *</label>
+                                    <label class="form-label"><i class="bi bi-calendar-event"></i> {% trans "Verilmə tarixi və vaxtı" %} *</label>
                                     {{ form.date_given }}
                                     {% if form.date_given.errors %}
                                         <div class="text-danger">{{ form.date_given.errors }}</div>
                                     {% endif %}
+                                    <small class="form-text text-muted">{% trans "Borcun verildiyi tarix və vaxt" %}</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">{% trans "Vəd tarixi" %} *</label>
+                                    <label class="form-label"><i class="bi bi-calendar-check"></i> {% trans "Vəd tarixi" %} *</label>
                                     {{ form.promise_date }}
                                     {% if form.promise_date.errors %}
                                         <div class="text-danger">{{ form.promise_date.errors }}</div>
                                     {% endif %}
+                                    <small class="form-text text-muted">{% trans "Müştərinin pulu qaytarmaq üçün vəd etdiyi tarix" %}</small>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -108,11 +193,16 @@
                         </div>
                     </div>
                     
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'debt_list' %}" class="btn btn-secondary">{% trans "Ləğv et" %}</a>
-                        <button type="submit" class="btn btn-primary">{% trans "Borc əlavə et" %}</button>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{% url 'debt_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> {% trans "Ləğv et" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle-fill"></i> {% trans "Borc əlavə et" %}
+                        </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     </div>

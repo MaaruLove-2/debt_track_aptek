@@ -128,15 +128,62 @@ class DebtForm(forms.ModelForm):
         if 'customer' in self.fields:
             self.fields['customer'].required = False
             self.fields['customer'].widget = forms.HiddenInput()
+        
+        # Set default datetime for date_given if not provided
+        if 'date_given' in self.fields and not self.initial.get('date_given'):
+            from django.utils import timezone
+            now = timezone.now()
+            # Format as datetime-local input expects: YYYY-MM-DDTHH:mm
+            self.initial['date_given'] = now.strftime('%Y-%m-%dT%H:%M')
     
     class Meta:
         model = Debt
         fields = ['customer', 'amount', 'date_given', 'promise_date', 'description']
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'date_given': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'date_given': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
             'promise_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class DebtEditForm(forms.ModelForm):
+    """Form for editing debts - only admins can use this"""
+    
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Always allow editing customer - use Select widget
+        if 'customer' in self.fields:
+            from .models import Customer
+            self.fields['customer'].queryset = Customer.objects.all().order_by('surname', 'name')
+            self.fields['customer'].widget.attrs.update({'class': 'form-control'})
+        
+        # Format paid_date for datetime-local input if it exists
+        if 'paid_date' in self.fields and self.instance and self.instance.paid_date:
+            from django.utils import timezone
+            paid_date = self.instance.paid_date
+            if timezone.is_aware(paid_date):
+                paid_date = timezone.localtime(paid_date)
+            self.initial['paid_date'] = paid_date.strftime('%Y-%m-%dT%H:%M')
+        
+        # Set widget attributes
+        if 'amount' in self.fields:
+            self.fields['amount'].widget.attrs.update({'class': 'form-control'})
+        if 'paid_date' in self.fields:
+            self.fields['paid_date'].widget.attrs.update({'class': 'form-control', 'type': 'datetime-local'})
+    
+    class Meta:
+        model = Debt
+        fields = ['customer', 'amount', 'date_given', 'promise_date', 'description', 'paid_date', 'payment_method']
+        widgets = {
+            'customer': forms.Select(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'date_given': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'promise_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'paid_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'payment_method': forms.Select(attrs={'class': 'form-control'}),
         }
 
 
@@ -163,4 +210,3 @@ class CustomerImportForm(forms.Form):
         help_text=_('Konтрагент (Müqavilə tərəfi) boş olan sətirləri xəta göstərmək əvəzinə atla'),
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
-

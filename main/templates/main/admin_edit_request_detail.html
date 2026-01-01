@@ -1,0 +1,117 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Təsdiq tələbi - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-check-circle"></i> {% trans "Təsdiq tələbi" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6>{% trans "Borc məlumatları" %}</h6>
+                        <p><strong>{% trans "Müştəri" %}:</strong> 
+                            <a href="{% url 'debt_detail' edit_request.debt.pk %}">
+                                {{ edit_request.debt.customer.name }} {{ edit_request.debt.customer.surname }}
+                            </a>
+                        </p>
+                        <p><strong>{% trans "Aptekçi" %}:</strong> {{ edit_request.debt.pharmacist }}</p>
+                        <p><strong>{% trans "Hazırkı məbləğ" %}:</strong> ₼{{ edit_request.debt.amount|floatformat:2 }}</p>
+                        {% if edit_request.debt.paid_date %}
+                        <p><strong>{% trans "Hazırkı ödəniş tarixi" %}:</strong> {{ edit_request.debt.paid_date|date:"d.m.Y H:i" }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6>{% trans "Tələb məlumatları" %}</h6>
+                        <p><strong>{% trans "Tələb edən" %}:</strong> {{ edit_request.requested_by }}</p>
+                        <p><strong>{% trans "Tarix" %}:</strong> {{ edit_request.created_at|date:"d.m.Y H:i" }}</p>
+                        <p><strong>{% trans "Status" %}:</strong> 
+                            {% if edit_request.status == 'pending' %}
+                            <span class="badge bg-warning">{% trans "Gözləyir" %}</span>
+                            {% elif edit_request.status == 'approved' %}
+                            <span class="badge bg-success">{% trans "Təsdiqlənib" %}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{% trans "Rədd edilib" %}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6>{% trans "Tələb olunan dəyişikliklər" %}</h6>
+                        {% if edit_request.requested_amount %}
+                        <div class="alert alert-info">
+                            <strong>{% trans "Məbləğ" %}:</strong><br>
+                            <span class="text-muted">₼{{ edit_request.debt.amount|floatformat:2 }}</span>
+                            <i class="bi bi-arrow-right"></i>
+                            <strong>₼{{ edit_request.requested_amount|floatformat:2 }}</strong>
+                        </div>
+                        {% endif %}
+                        {% if edit_request.requested_paid_date %}
+                        <div class="alert alert-info">
+                            <strong>{% trans "Ödəniş tarixi" %}:</strong><br>
+                            <span class="text-muted">{{ edit_request.debt.paid_date|date:"d.m.Y H:i"|default:"-" }}</span>
+                            <br><i class="bi bi-arrow-down"></i><br>
+                            <strong>{{ edit_request.requested_paid_date|date:"d.m.Y H:i" }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6>{% trans "Səbəb" %}</h6>
+                        <div class="alert alert-light">
+                            {{ edit_request.reason }}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if edit_request.status == 'pending' %}
+                <hr>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label"><strong>{% trans "Baxış qeydləri" %}</strong></label>
+                        <textarea name="review_notes" class="form-control" rows="3" placeholder="{% trans 'Qeyd əlavə edin (istəyə bağlı)' %}"></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> {% trans "Təsdiqlə" %}
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger">
+                            <i class="bi bi-x-circle"></i> {% trans "Rədd et" %}
+                        </button>
+                        <a href="{% url 'admin_edit_requests' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> {% trans "Geri" %}
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                {% if edit_request.review_notes %}
+                <hr>
+                <div class="mb-3">
+                    <h6>{% trans "Baxış qeydləri" %}</h6>
+                    <div class="alert alert-light">
+                        {{ edit_request.review_notes }}
+                    </div>
+                    <small class="text-muted">
+                        {% trans "Baxılan" %}: {{ edit_request.reviewed_by.get_full_name|default:edit_request.reviewed_by.username }} 
+                        ({{ edit_request.reviewed_at|date:"d.m.Y H:i" }})
+                    </small>
+                </div>
+                {% endif %}
+                <a href="{% url 'admin_edit_requests' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> {% trans "Geri" %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

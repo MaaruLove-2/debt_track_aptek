@@ -69,6 +69,11 @@
                             <i class="bi bi-bell"></i> {% trans "Xatırlatmalar" %}
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'todays_operations' %}">
+                            <i class="bi bi-calendar-day"></i> {% trans "Bugünkü əməliyyatlar" %}
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-people"></i> {% trans "İdarə et" %}
@@ -85,6 +90,7 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}"><i class="bi bi-speedometer2"></i> {% trans "Admin Paneli" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'admin_all_debts' %}"><i class="bi bi-list-ul"></i> {% trans "Bütün borclar" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'todays_operations' %}"><i class="bi bi-calendar-day"></i> {% trans "Bugünkü əməliyyatlar" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'admin_pharmacist_list' %}"><i class="bi bi-people"></i> {% trans "Aptekçiləri idarə et" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/admin/" target="_blank"><i class="bi bi-gear"></i> Django Admin</a></li>

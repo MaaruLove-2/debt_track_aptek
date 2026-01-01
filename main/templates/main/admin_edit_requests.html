@@ -1,0 +1,126 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Təsdiq tələbləri - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h4><i class="bi bi-check-circle"></i> {% trans "Borc redaktə təsdiq tələbləri" %}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="btn-group" role="group">
+            <a href="{% url 'admin_edit_requests' %}?status=pending" 
+               class="btn {% if selected_status == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                <i class="bi bi-clock-history"></i> {% trans "Gözləyir" %}
+            </a>
+            <a href="{% url 'admin_edit_requests' %}?status=approved" 
+               class="btn {% if selected_status == 'approved' %}btn-success{% else %}btn-outline-success{% endif %}">
+                <i class="bi bi-check-circle"></i> {% trans "Təsdiqlənib" %}
+            </a>
+            <a href="{% url 'admin_edit_requests' %}?status=rejected" 
+               class="btn {% if selected_status == 'rejected' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                <i class="bi bi-x-circle"></i> {% trans "Rədd edilib" %}
+            </a>
+            <a href="{% url 'admin_edit_requests' %}" 
+               class="btn btn-outline-secondary">
+                <i class="bi bi-list"></i> {% trans "Hamısı" %}
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if requests %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "Borc" %}</th>
+                                <th>{% trans "Tələb edən" %}</th>
+                                <th>{% trans "Məbləğ dəyişikliyi" %}</th>
+                                <th>{% trans "Ödəniş tarixi dəyişikliyi" %}</th>
+                                <th>{% trans "Səbəb" %}</th>
+                                <th>{% trans "Status" %}</th>
+                                <th>{% trans "Tarix" %}</th>
+                                <th>{% trans "Əməliyyatlar" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in requests %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <a href="{% url 'debt_detail' req.debt.pk %}">
+                                        {{ req.debt.customer.name }} {{ req.debt.customer.surname }}
+                                    </a>
+                                    <br><small class="text-muted">₼{{ req.debt.amount|floatformat:2 }}</small>
+                                </td>
+                                <td>{{ req.requested_by }}</td>
+                                <td>
+                                    {% if req.requested_amount %}
+                                    <span class="text-muted">₼{{ req.debt.amount|floatformat:2 }}</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                    <strong>₼{{ req.requested_amount|floatformat:2 }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.requested_paid_date %}
+                                    <span class="text-muted">{{ req.debt.paid_date|date:"d.m.Y H:i"|default:"-" }}</span>
+                                    <br><i class="bi bi-arrow-down"></i>
+                                    <strong>{{ req.requested_paid_date|date:"d.m.Y H:i" }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ req.reason|truncatewords:10 }}</small></td>
+                                <td>
+                                    {% if req.status == 'pending' %}
+                                    <span class="badge bg-warning">{% trans "Gözləyir" %}</span>
+                                    {% elif req.status == 'approved' %}
+                                    <span class="badge bg-success">{% trans "Təsdiqlənib" %}</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{% trans "Rədd edilib" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ req.created_at|date:"d.m.Y H:i" }}</small></td>
+                                <td>
+                                    {% if req.status == 'pending' %}
+                                    <a href="{% url 'admin_edit_request_detail' req.pk %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-eye"></i> {% trans "Bax" %}
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'admin_edit_request_detail' req.pk %}" class="btn btn-sm btn-secondary">
+                                        <i class="bi bi-eye"></i> {% trans "Bax" %}
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i> {% trans "Təsdiq tələbi yoxdur." %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
