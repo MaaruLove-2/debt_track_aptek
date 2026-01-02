@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
+{% load tz %}
 
 {% block title %}{% trans "Günlük əməliyyatlar - Aptek Borc İzləyicisi" %}{% endblock %}
 
@@ -21,9 +22,10 @@
                         </h4>
                     </div>
                     <div class="col-md-6">
-                        <form method="get" action="{% url 'todays_operations' %}" class="d-flex gap-2">
+                        <form method="get" action="{% url 'todays_operations' %}" class="d-flex gap-2" id="dateForm">
                             <input type="date" 
                                    name="date" 
+                                   id="dateInput"
                                    value="{{ selected_date|date:'Y-m-d' }}" 
                                    class="form-control"
                                    style="max-width: 200px;">
@@ -36,6 +38,19 @@
                             </a>
                             {% endif %}
                         </form>
+                        <script>
+                            // Set default date to today if no date is selected
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const dateInput = document.getElementById('dateInput');
+                                if (!dateInput.value) {
+                                    const today = new Date();
+                                    const year = today.getFullYear();
+                                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                                    const day = String(today.getDate()).padStart(2, '0');
+                                    dateInput.value = year + '-' + month + '-' + day;
+                                }
+                            });
+                        </script>
                     </div>
                 </div>
             </div>
@@ -44,49 +59,33 @@
 </div>
 
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card stat-card total">
             <div class="card-body">
-                <h5 class="card-title">{% trans "Ümumi say" %}</h5>
-                <h2 class="text-primary">{{ total_count }}</h2>
-                <p class="text-muted mb-0">{% trans "borc" %}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card total">
-            <div class="card-body">
-                <h5 class="card-title">{% trans "Ümumi məbləğ" %}</h5>
+                <h5 class="card-title">{% trans "Ümumi verilen borc" %}</h5>
                 <h2 class="text-primary">₼{{ total_amount|floatformat:2 }}</h2>
-                <p class="text-muted mb-0">{% trans "seçilmiş tarix" %}</p>
+                <p class="text-muted mb-0">{{ debts_given_today.count }} {% trans "borc" %}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card pending">
+    {% if deleted_count %}
+    <div class="col-md-4">
+        <div class="card stat-card" style="border: 2px solid #dc3545;">
             <div class="card-body">
-                <h5 class="card-title">{% trans "Ödənilməmiş" %}</h5>
-                <h2 class="text-warning">{{ unpaid_count }}</h2>
+                <h5 class="card-title">{% trans "Silinmiş" %}</h5>
+                <h2 class="text-danger">{{ deleted_count }}</h2>
                 <p class="text-muted mb-0">{% trans "borc" %}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card paid">
+    {% endif %}
+    {% if payments_today_total %}
+    <div class="col-md-4">
+        <div class="card stat-card" style="border: 2px solid #28a745;">
             <div class="card-body">
-                <h5 class="card-title">{% trans "Ödənilmiş" %}</h5>
-                <h2 class="text-success">{{ paid_count }}</h2>
-                <p class="text-muted mb-0">{% trans "borc" %}</p>
-            </div>
-        </div>
-    </div>
-    {% if paid_today_count %}
-    <div class="col-md-3">
-        <div class="card stat-card" style="border-left-color: #28a745;">
-            <div class="card-body">
-                <h5 class="card-title">{% trans "Bu gün ödənilmiş" %}</h5>
-                <h2 class="text-success">{{ paid_today_count }}</h2>
-                <p class="text-muted mb-0">{% trans "borc" %}</p>
+                <h5 class="card-title">{% trans "Ödənişlər" %}</h5>
+                <h2 class="text-success">₼{{ payments_today_total|floatformat:2 }}</h2>
+                <p class="text-muted mb-0">{{ all_payments_today|length }} {% trans "ödəniş" %}</p>
             </div>
         </div>
     </div>
@@ -96,11 +95,11 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
-                <h5><i class="bi bi-list-ul"></i> {% trans "Seçilmiş tarixdə yaradılan və ödənilmiş borclar" %}</h5>
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-arrow-down-circle"></i> {% trans "Verilən borclar" %} - {{ selected_date|date:"d.m.Y" }}</h5>
             </div>
             <div class="card-body">
-                {% if operations %}
+                {% if debts_given_today %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -111,15 +110,13 @@
                                 <th>{% trans "Aptekçi" %}</th>
                                 {% endif %}
                                 <th>{% trans "Məbləğ" %}</th>
-                                <th>{% trans "Vəd tarixi" %}</th>
-                                <th>{% trans "Status" %}</th>
                                 <th>{% trans "Tarix" %}</th>
                                 <th>{% trans "Əməliyyatlar" %}</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for debt in operations %}
-                            <tr {% if debt.is_paid and debt.paid_date and debt.paid_date.date == selected_date %}class="table-success"{% elif debt.date_given and debt.date_given.date == selected_date %}class="table-info"{% endif %}>
+                            {% for debt in debts_given_today %}
+                            <tr class="table-info">
                                 <td>{{ forloop.counter }}</td>
                                 <td>
                                     <strong>{{ debt.customer.name }} {{ debt.customer.surname }}</strong>
@@ -129,48 +126,31 @@
                                     {% if debt.customer.phone %}
                                     <br><small class="text-muted"><i class="bi bi-telephone"></i> {{ debt.customer.phone }}</small>
                                     {% endif %}
-                                    {% if debt.is_paid and debt.paid_date and debt.paid_date.date == selected_date %}
-                                    <br><span class="badge bg-success mt-1"><i class="bi bi-check-circle"></i> {% trans "Bu gün ödənilib" %}</span>
-                                    {% elif debt.date_given.date == selected_date %}
-                                    <br><span class="badge bg-info mt-1"><i class="bi bi-plus-circle"></i> {% trans "Bu gün verilib" %}</span>
-                                    {% endif %}
                                 </td>
                                 {% if is_admin %}
                                 <td>
                                     <span class="badge bg-info">{{ debt.pharmacist.name }} {{ debt.pharmacist.surname }}</span>
                                 </td>
                                 {% endif %}
-                                <td><strong>₼{{ debt.amount|floatformat:2 }}</strong></td>
                                 <td>
-                                    {{ debt.promise_date|date:"d.m.Y" }}
-                                    {% if debt.is_overdue %}
-                                    <span class="badge bg-danger ms-1">{% trans "Vaxtı keçib" %}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if debt.is_paid %}
-                                    <span class="badge bg-success">{% trans "Ödənilmiş" %}</span>
-                                    {% if debt.payment_method %}
-                                    <br><small class="text-muted">{% trans "Ödəniş üsulu" %}: {{ debt.get_payment_method_display_az }}</small>
-                                    {% endif %}
-                                    {% else %}
-                                    <span class="badge bg-warning">{% trans "Ödənilməmiş" %}</span>
+                                    <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
+                                    {% if debt.paid_amount > 0 %}
+                                    <br><small class="text-muted">{% trans "Ümumi" %}: ₼{{ debt.amount|floatformat:2 }} | {% trans "Ödənilmiş" %}: ₼{{ debt.paid_amount|floatformat:2 }}</small>
                                     {% endif %}
                                 </td>
                                 <td>
                                     <small>
-                                        {% if debt.is_paid and debt.paid_date and debt.paid_date.date == selected_date %}
-                                        <strong>{% trans "Ödənilmə" %}:</strong> {{ debt.paid_date|date:"d.m.Y H:i" }}<br>
-                                        <span class="text-muted">{% trans "Verilmə" %}: {{ debt.date_given|date:"d.m.Y H:i" }}</span>
-                                        {% else %}
-                                        {{ debt.date_given|date:"d.m.Y H:i" }}
-                                        {% endif %}
+                                        {% timezone "Asia/Baku" %}{{ debt.date_given|date:"d.m.Y H:i" }}{% endtimezone %}
                                     </small>
                                 </td>
                                 <td>
+                                    {% if not debt.is_deleted %}
                                     <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye"></i> {% trans "Bax" %}
                                     </a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -179,12 +159,92 @@
                 </div>
                 {% else %}
                 <div class="alert alert-info text-center">
-                    <i class="bi bi-info-circle"></i> {% trans "Seçilmiş tarixdə heç bir borc yaradılmayıb." %}
+                    <i class="bi bi-info-circle"></i> {% trans "Seçilmiş tarixdə verilən borc yoxdur." %}
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+{% if all_payments_today %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-cash-coin"></i> {% trans "Ödənişlər (Qismən və Tam)" %} - {{ selected_date|date:"d.m.Y" }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "Müştəri" %}</th>
+                                {% if is_admin %}
+                                <th>{% trans "Aptekçi" %}</th>
+                                {% endif %}
+                                <th>{% trans "Ödəniş məbləği" %}</th>
+                                <th>{% trans "Ödəniş üsulu" %}</th>
+                                <th>{% trans "Tarix və vaxt" %}</th>
+                                <th>{% trans "Qalan məbləğ" %}</th>
+                                <th>{% trans "Tip" %}</th>
+                                <th>{% trans "Qeydlər" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in all_payments_today %}
+                            <tr class="table-success">
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    {% if payment.is_full_payment %}
+                                    <strong>{{ payment.debt.customer.name }} {{ payment.debt.customer.surname }}</strong>
+                                    {% if payment.debt.customer.place %}
+                                    <br><small class="text-muted">{{ payment.debt.customer.place }}</small>
+                                    {% endif %}
+                                    {% else %}
+                                    <strong>{{ payment.debt.customer.name }} {{ payment.debt.customer.surname }}</strong>
+                                    {% if payment.debt.customer.place %}
+                                    <br><small class="text-muted">{{ payment.debt.customer.place }}</small>
+                                    {% endif %}
+                                    {% endif %}
+                                </td>
+                                {% if is_admin %}
+                                <td>
+                                    <span class="badge bg-info">{% if payment.is_full_payment %}{{ payment.debt.pharmacist.name }} {{ payment.debt.pharmacist.surname }}{% else %}{{ payment.debt.pharmacist.name }} {{ payment.debt.pharmacist.surname }}{% endif %}</span>
+                                </td>
+                                {% endif %}
+                                <td><strong class="text-success">₼{% if payment.is_full_payment %}{{ payment.amount|floatformat:2 }}{% else %}{{ payment.amount|floatformat:2 }}{% endif %}</strong></td>
+                                <td>
+                                    <span class="badge bg-primary">{% if payment.is_full_payment %}{{ payment.debt.get_payment_method_display_az|default:"-" }}{% else %}{{ payment.get_payment_method_display_az }}{% endif %}</span>
+                                </td>
+                                <td>
+                                    {% timezone "Asia/Baku" %}
+                                    <small>{% if payment.is_full_payment %}{{ payment.payment_date|date:"d.m.Y H:i" }}{% else %}{{ payment.payment_date|date:"d.m.Y H:i" }}{% endif %}</small>
+                                    {% endtimezone %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">₼{% if payment.is_full_payment %}0.00{% else %}{{ payment.debt.remaining_amount|floatformat:2 }}{% endif %}</small>
+                                </td>
+                                <td>
+                                    {% if payment.is_full_payment %}
+                                    <span class="badge bg-success">{% trans "Tam ödəniş" %}</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">{% trans "Qismən ödəniş" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{% if payment.is_full_payment %}-{% else %}{{ payment.notes|default:"-" }}{% endif %}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 

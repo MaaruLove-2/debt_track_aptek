@@ -62,6 +62,12 @@ class Customer(models.Model):
         return f"{full_name} ({self.place})"
 
 
+class DebtManager(models.Manager):
+    """Custom manager that excludes deleted debts by default"""
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
 class Debt(models.Model):
     """Model representing a debt record"""
     PAYMENT_METHOD_CHOICES = [
@@ -79,9 +85,16 @@ class Debt(models.Model):
     is_paid = models.BooleanField(_('Ödənilib'), default=False)
     paid_date = models.DateTimeField(_('Ödəniş tarixi'), blank=True, null=True, help_text=_("Ödəniş tarixi və vaxtı"))
     payment_method = models.CharField(_('Ödəniş üsulu'), max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True, help_text=_("Ödəniş üsulu"))
+    is_deleted = models.BooleanField(_('Silinib'), default=False, help_text=_("Borcun silinib-silinməməsi"))
+    deleted_at = models.DateTimeField(_('Silinmə tarixi'), blank=True, null=True, help_text=_("Borcun silindiyi tarix və vaxt"))
+    deleted_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='deleted_debts', verbose_name=_('Silən'))
     created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
     updated_at = models.DateTimeField(_('Yenilənmə tarixi'), auto_now=True)
 
+    # Custom manager to exclude deleted debts by default
+    objects = DebtManager()
+    all_objects = models.Manager()  # Manager that includes deleted items
+    
     class Meta:
         ordering = ['-date_given', '-created_at']
         verbose_name = _('Borc')
@@ -125,6 +138,101 @@ class Debt(models.Model):
             'posterminal': 'Posterminal',
         }
         return method_map.get(self.payment_method, self.payment_method)
+    
+    @property
+    def paid_amount(self):
+        """Calculate total paid amount from partial payments"""
+        return self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
+    
+    @property
+    def remaining_amount(self):
+        """Calculate remaining amount to be paid"""
+        return self.amount - self.paid_amount
+    
+    def soft_delete(self, user):
+        """Soft delete the debt"""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save()
+
+
+class Payment(models.Model):
+    """Model for tracking partial payments on debts"""
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', _('Nağd')),
+        ('card', _('Kart')),
+        ('posterminal', _('Posterminal')),
+    ]
+    
+    debt = models.ForeignKey(Debt, on_delete=models.CASCADE, related_name='payments', verbose_name=_('Borc'))
+    amount = models.DecimalField(_('Məbləğ'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
+    payment_date = models.DateTimeField(_('Ödəniş tarixi'), default=timezone.now, help_text=_("Ödəniş tarixi və vaxtı"))
+    payment_method = models.CharField(_('Ödəniş üsulu'), max_length=20, choices=PAYMENT_METHOD_CHOICES, help_text=_("Ödəniş üsulu"))
+    notes = models.TextField(_('Qeydlər'), blank=True, null=True, help_text=_("Ödənişlə bağlı əlavə qeydlər"))
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_payments', verbose_name=_('Yaradan'))
+    created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-payment_date', '-created_at']
+        verbose_name = _('Ödəniş')
+        verbose_name_plural = _('Ödənişlər')
+    
+    def __str__(self):
+        return f"{self.debt.customer} - {self.amount}₼ ({self.payment_date.strftime('%d.%m.%Y %H:%M')})"
+    
+    def get_payment_method_display_az(self):
+        """Get payment method display name in Azerbaijani"""
+        method_map = {
+            'cash': 'Nağd',
+            'card': 'Kart',
+            'posterminal': 'Posterminal',
+        }
+        return method_map.get(self.payment_method, self.payment_method)
+
+
+class Payment(models.Model):
+    """Model for tracking partial payments on debts"""
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', _('Nağd')),
+        ('card', _('Kart')),
+        ('posterminal', _('Posterminal')),
+    ]
+    
+    debt = models.ForeignKey(Debt, on_delete=models.CASCADE, related_name='payments', verbose_name=_('Borc'))
+    amount = models.DecimalField(_('Məbləğ'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
+    payment_date = models.DateTimeField(_('Ödəniş tarixi'), default=timezone.now, help_text=_("Ödəniş tarixi və vaxtı"))
+    payment_method = models.CharField(_('Ödəniş üsulu'), max_length=20, choices=PAYMENT_METHOD_CHOICES, help_text=_("Ödəniş üsulu"))
+    notes = models.TextField(_('Qeydlər'), blank=True, null=True, help_text=_("Ödənişlə bağlı əlavə qeydlər"))
+    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_payments', verbose_name=_('Yaradan'))
+    created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-payment_date', '-created_at']
+        verbose_name = _('Ödəniş')
+        verbose_name_plural = _('Ödənişlər')
+    
+    def __str__(self):
+        return f"{self.debt.customer} - {self.amount}₼ ({self.payment_date.strftime('%d.%m.%Y %H:%M')})"
+    
+    def get_payment_method_display_az(self):
+        """Get payment method display name in Azerbaijani"""
+        method_map = {
+            'cash': 'Nağd',
+            'card': 'Kart',
+            'posterminal': 'Posterminal',
+        }
+        return method_map.get(self.payment_method, self.payment_method)
+    
+    def save(self, *args, **kwargs):
+        """Override save to check if debt is fully paid"""
+        super().save(*args, **kwargs)
+        # Check if debt is fully paid after this payment
+        if self.debt.remaining_amount <= 0:
+            self.debt.is_paid = True
+            self.debt.paid_date = self.payment_date
+            self.debt.payment_method = self.payment_method
+            self.debt.save()
 
 
 class DebtEditRequest(models.Model):

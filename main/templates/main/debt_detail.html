@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
+{% load tz %}
 
 {% block title %}{% trans "Borc detalları - Aptek Borc İzləyicisi" %}{% endblock %}
 
@@ -26,14 +27,22 @@
                 <hr>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <strong>{% trans "Məbləğ" %}:</strong><br>
-                        <h4 class="text-primary">₼{{ debt.amount|floatformat:2 }}</h4>
+                        <small class="text-muted">{% trans "Ümumi məbləğ" %}:</small><br>
+                        <small class="text-muted">₼{{ debt.amount|floatformat:2 }}</small>
+                        {% if debt.paid_amount > 0 %}
+                        <hr class="my-2">
+                        <strong>{% trans "Ödənilmiş" %}:</strong><br>
+                        <h6 class="text-success">₼{{ debt.paid_amount|floatformat:2 }}</h6>
+                        <hr class="my-2">
+                        {% endif %}
+                        <strong>{% trans "Qalan məbləğ" %}:</strong><br>
+                        <h2 class="text-primary fw-bold" style="font-size: 2.5rem; text-shadow: 0 2px 4px rgba(0,123,255,0.3);">₼{{ debt.remaining_amount|floatformat:2 }}</h2>
                     </div>
                     <div class="col-md-6">
                         <strong>{% trans "Status" %}:</strong><br>
                         {% if debt.is_paid %}
                             <span class="badge bg-success fs-6">{% trans "Ödənilib" %}</span>
-                            <br><small class="text-muted">{% trans "Ödənilmə tarixi" %}: {{ debt.paid_date|date:"d.m.Y H:i" }}</small>
+                            <br><small class="text-muted">{% trans "Ödənilmə tarixi" %}: {% timezone "Asia/Baku" %}{{ debt.paid_date|date:"d.m.Y H:i" }}{% endtimezone %}</small>
                             {% if debt.payment_method %}
                             <br><small class="text-muted">{% trans "Ödəniş üsulu" %}: <strong>{{ debt.get_payment_method_display_az }}</strong></small>
                             {% endif %}
@@ -49,7 +58,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <strong>{% trans "Verilmə tarixi" %}:</strong><br>
-                        {{ debt.date_given|date:"d.m.Y H:i" }}
+                        {% timezone "Asia/Baku" %}{{ debt.date_given|date:"d.m.Y H:i" }}{% endtimezone %}
                     </div>
                     <div class="col-md-6">
                         <strong>{% trans "Vəd tarixi" %}:</strong><br>
@@ -66,16 +75,50 @@
                     <p>{{ debt.description }}</p>
                 </div>
                 {% endif %}
+                {% if payments %}
+                <hr>
+                <div class="mb-3">
+                    <strong>{% trans "Ödəniş tarixçəsi" %}:</strong>
+                    <div class="table-responsive mt-2">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Tarix" %}</th>
+                                    <th>{% trans "Məbləğ" %}</th>
+                                    <th>{% trans "Ödəniş üsulu" %}</th>
+                                    <th>{% trans "Qeydlər" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{% timezone "Asia/Baku" %}{{ payment.payment_date|date:"d.m.Y H:i" }}{% endtimezone %}</td>
+                                    <td>₼{{ payment.amount|floatformat:2 }}</td>
+                                    <td>{{ payment.get_payment_method_display_az }}</td>
+                                    <td>{{ payment.notes|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
                 <hr>
                 <div class="d-flex gap-2">
                     {% if user.is_staff or user.is_superuser %}
                     <a href="{% url 'debt_edit' debt.pk %}" class="btn btn-warning">
                         <i class="bi bi-pencil-square"></i> {% trans "Redaktə et" %}
                     </a>
+                    <a href="{% url 'debt_delete' debt.pk %}" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> {% trans "Sil" %}
+                    </a>
                     {% endif %}
                     {% if not debt.is_paid %}
+                    <a href="{% url 'debt_add_payment' debt.pk %}" class="btn btn-info">
+                        <i class="bi bi-cash-coin"></i> {% trans "Qismən ödəniş" %}
+                    </a>
                     <a href="{% url 'debt_mark_paid' debt.pk %}" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> {% trans "Ödənildi kimi işarələ" %}
+                        <i class="bi bi-check-circle"></i> {% trans "Tam ödənildi" %}
                     </a>
                     {% endif %}
                     <a href="{% url 'debt_list' %}" class="btn btn-secondary">

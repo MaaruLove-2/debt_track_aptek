@@ -45,7 +45,12 @@
                                     {% if is_admin %}
                                     <td><span class="badge bg-info">{{ debt.pharmacist.name }} {{ debt.pharmacist.surname }}</span></td>
                                     {% endif %}
-                                    <td><strong>₼{{ debt.amount|floatformat:2 }}</strong></td>
+                                    <td>
+                                        <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
+                                        {% if debt.paid_amount > 0 %}
+                                        <br><small class="text-muted">{% trans "Ümumi" %}: ₼{{ debt.amount|floatformat:2 }} | {% trans "Ödənilmiş" %}: ₼{{ debt.paid_amount|floatformat:2 }}</small>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ debt.promise_date }}</td>
                                     <td><span class="badge bg-danger">{{ debt.days_overdue }} {% trans "gün" %}</span></td>
                                     <td>

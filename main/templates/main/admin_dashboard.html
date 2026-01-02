@@ -19,8 +19,8 @@
         <div class="card stat-card total">
             <div class="card-body">
                 <h5 class="card-title">{% trans "Ümumi ödənilməmiş borclar" %}</h5>
-                <h2 class="text-primary">{{ total_debts }}</h2>
-                <p class="text-muted mb-0">{% trans "Məbləğ" %}: ₼{{ total_amount|floatformat:2 }}</p>
+                <h2 class="text-primary">₼{{ total_amount|floatformat:2 }}</h2>
+                <p class="text-muted mb-0">{{ total_debts }} {% trans "borc" %}</p>
             </div>
         </div>
     </div>
@@ -28,12 +28,23 @@
         <div class="card stat-card overdue">
             <div class="card-body">
                 <h5 class="card-title">{% trans "Vaxtı keçmiş borclar" %}</h5>
-                <h2 class="text-danger">{{ overdue_debts }}</h2>
-                <p class="text-muted mb-0">{% trans "Məbləğ" %}: ₼{{ overdue_amount|floatformat:2 }}</p>
+                <h2 class="text-danger">₼{{ overdue_amount|floatformat:2 }}</h2>
+                <p class="text-muted mb-0">{{ overdue_debts }} {% trans "borc" %}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-3">
+        <div class="card stat-card" style="border-left-color: #17a2b8;">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Aylıq hesabat" %}</h5>
+                <p class="mb-1"><small class="text-muted">{% now "F Y" %}</small></p>
+                <p class="mb-1"><strong>{% trans "Verilən" %}:</strong> <span class="text-info">₼{{ monthly_given|floatformat:2 }}</span></p>
+                <p class="mb-1"><strong>{% trans "Qaytarılan" %}:</strong> <span class="text-success">₼{{ monthly_returned|floatformat:2 }}</span></p>
+                <p class="mb-0"><strong>{% trans "Qalıq" %}:</strong> <span class="{% if monthly_balance > 0 %}text-danger{% else %}text-success{% endif %}">₼{{ monthly_balance|floatformat:2 }}</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">{% trans "Sürətli əməliyyatlar" %}</h5>
@@ -130,7 +141,7 @@
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">{{ debt.customer.name }} {{ debt.customer.surname }}</h6>
                             <span class="badge {% if debt.is_overdue %}bg-danger{% else %}bg-warning{% endif %}">
-                                ₼{{ debt.amount|floatformat:2 }}
+                                       ₼{{ debt.remaining_amount|floatformat:2 }}
                             </span>
                         </div>
                         <p class="mb-1">
@@ -172,7 +183,12 @@
                             <tr>
                                 <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                                 <td><small>{{ debt.pharmacist }}</small></td>
-                                <td>₼{{ debt.amount|floatformat:2 }}</td>
+                                <td>
+                                    <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
+                                    {% if debt.paid_amount > 0 %}
+                                    <br><small class="text-muted">{% trans "Ümumi" %}: ₼{{ debt.amount|floatformat:2 }} | {% trans "Ödənilmiş" %}: ₼{{ debt.paid_amount|floatformat:2 }}</small>
+                                    {% endif %}
+                                </td>
                                 <td><span class="badge bg-danger">{{ debt.days_overdue }}</span></td>
                             </tr>
                             {% endfor %}

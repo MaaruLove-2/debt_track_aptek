@@ -1,0 +1,64 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Borc sil - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5><i class="bi bi-exclamation-triangle"></i> {% trans "Borc silmək" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <strong>{% trans "Diqqət!" %}</strong><br>
+                    {% trans "Bu borcu silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz." %}
+                </div>
+                
+                <div class="mb-3">
+                    <strong>{% trans "Müştəri" %}:</strong> {{ debt.customer.name }} {{ debt.customer.surname }}<br>
+                    <strong>{% trans "Məbləğ" %}:</strong> ₼{{ debt.amount|floatformat:2 }}<br>
+                    <strong>{% trans "Verilmə tarixi" %}:</strong> {{ debt.date_given|date:"d.m.Y H:i" }}<br>
+                    <strong>{% trans "Vəd tarixi" %}:</strong> {{ debt.promise_date }}<br>
+                    <strong>{% trans "Status" %}:</strong> 
+                    {% if debt.is_paid %}
+                        <span class="badge bg-success">{% trans "Ödənilib" %}</span>
+                    {% else %}
+                        <span class="badge bg-warning">{% trans "Gözləyir" %}</span>
+                    {% endif %}
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="bi bi-shield-lock"></i> {% trans "Parolunuzu daxil edin" %} *
+                        </label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password" 
+                               name="password" 
+                               required 
+                               autofocus
+                               placeholder="{% trans 'Parolunuzu daxil edin' %}">
+                        <small class="form-text text-muted">
+                            {% trans "Borcun silinməsi üçün parolunuzu təsdiq etməlisiniz." %}
+                        </small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> {% trans "Borc sil" %}
+                        </button>
+                        <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> {% trans "Ləğv et" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from .models import Pharmacist, Customer, Debt
+from .models import Pharmacist, Customer, Debt, Payment
 
 
 class PharmacistForm(forms.ModelForm):
@@ -35,30 +36,26 @@ class PharmacistForm(forms.ModelForm):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
         password_confirm = cleaned_data.get('password_confirm')
-        username = cleaned_data.get('username')
         
-        if password and password_confirm and password != password_confirm:
-            raise forms.ValidationError(_('Parollar uyğun gəlmir.'))
-        
-        if username and User.objects.filter(username=username).exists():
-            raise forms.ValidationError(_('Bu istifadəçi adı artıq mövcuddur.'))
+        if password and password_confirm:
+            if password != password_confirm:
+                raise forms.ValidationError(_('Parollar uyğun deyil.'))
+            if len(password) < 8:
+                raise forms.ValidationError(_('Parol minimum 8 simvol olmalıdır.'))
         
         return cleaned_data
     
     def save(self, commit=True):
         pharmacist = super().save(commit=False)
-        username = self.cleaned_data['username']
-        password = self.cleaned_data['password']
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
         
-        # Create User account
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            email=self.cleaned_data.get('email', ''),
-            first_name=self.cleaned_data.get('name', ''),
-            last_name=self.cleaned_data.get('surname', '')
-        )
-        pharmacist.user = user
+        if username and password:
+            user = User.objects.create_user(
+                username=username,
+                password=password
+            )
+            pharmacist.user = user
         
         if commit:
             pharmacist.save()
@@ -82,18 +79,14 @@ class CustomerForm(forms.ModelForm):
 class SimplifiedCustomerForm(forms.Form):
     """Simplified form for quick customer creation"""
     full_name = forms.CharField(
-        label=_('Ad, Soyad, Yer'),
+        label='',
         max_length=300,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': _('Məs: Əli Məmmədov Bakı və ya Məmmədov Əli Bakı')
-        }),
-        help_text=_('Ad, Soyad və Yer bir sətirdə (məs: Əli Məmmədov Bakı)')
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Ad, Soyad və Yer bir sətirdə')}),
     )
     phone = forms.CharField(
         label=_('Telefon'),
         max_length=20,
-        required=False,
+        required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+994501234567'})
     )
 
@@ -129,19 +122,42 @@ class DebtForm(forms.ModelForm):
             self.fields['customer'].required = False
             self.fields['customer'].widget = forms.HiddenInput()
         
-        # Set default datetime for date_given if not provided
-        if 'date_given' in self.fields and not self.initial.get('date_given'):
+        # Hide date_given field - it will be set automatically to current time
+        if 'date_given' in self.fields:
+            self.fields['date_given'].widget = forms.HiddenInput()
+            # Set to current time
             from django.utils import timezone
             now = timezone.now()
-            # Format as datetime-local input expects: YYYY-MM-DDTHH:mm
-            self.initial['date_given'] = now.strftime('%Y-%m-%dT%H:%M')
+            self.initial['date_given'] = now
+        
+        # Set promise_date default to end of current month
+        if 'promise_date' in self.fields and not self.initial.get('promise_date'):
+            from datetime import datetime
+            from calendar import monthrange
+            now = timezone.now()
+            # Get last day of current month
+            last_day = monthrange(now.year, now.month)[1]
+            # Create date for last day of current month
+            end_of_month = datetime(now.year, now.month, last_day).date()
+            self.initial['promise_date'] = end_of_month
+    
+    def clean_date_given(self):
+        """Convert naive datetime from datetime-local input to timezone-aware datetime"""
+        date_given = self.cleaned_data.get('date_given')
+        if date_given and timezone.is_naive(date_given):
+            # datetime-local sends naive datetime, assume it's in local timezone (Asia/Baku)
+            from django.conf import settings
+            import pytz
+            local_tz = pytz.timezone(settings.TIME_ZONE)
+            date_given = local_tz.localize(date_given)
+        return date_given
     
     class Meta:
         model = Debt
         fields = ['customer', 'amount', 'date_given', 'promise_date', 'description']
         widgets = {
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'date_given': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'date_given': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'promise_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
@@ -161,17 +177,44 @@ class DebtEditForm(forms.ModelForm):
         
         # Format paid_date for datetime-local input if it exists
         if 'paid_date' in self.fields and self.instance and self.instance.paid_date:
-            from django.utils import timezone
             paid_date = self.instance.paid_date
             if timezone.is_aware(paid_date):
                 paid_date = timezone.localtime(paid_date)
             self.initial['paid_date'] = paid_date.strftime('%Y-%m-%dT%H:%M')
+        
+        # Format date_given for datetime-local input if it exists
+        if 'date_given' in self.fields and self.instance and self.instance.date_given:
+            date_given = self.instance.date_given
+            if timezone.is_aware(date_given):
+                date_given = timezone.localtime(date_given)
+            self.initial['date_given'] = date_given.strftime('%Y-%m-%dT%H:%M')
         
         # Set widget attributes
         if 'amount' in self.fields:
             self.fields['amount'].widget.attrs.update({'class': 'form-control'})
         if 'paid_date' in self.fields:
             self.fields['paid_date'].widget.attrs.update({'class': 'form-control', 'type': 'datetime-local'})
+        if 'date_given' in self.fields:
+            self.fields['date_given'].widget.attrs.update({'class': 'form-control', 'type': 'datetime-local'})
+    
+    def clean_date_given(self):
+        """Convert naive datetime from datetime-local input to timezone-aware datetime"""
+        date_given = self.cleaned_data.get('date_given')
+        if date_given and timezone.is_naive(date_given):
+            # datetime-local sends naive datetime, assume it's in local timezone
+            date_given = timezone.make_aware(date_given)
+        return date_given
+    
+    def clean_paid_date(self):
+        """Convert naive datetime from datetime-local input to timezone-aware datetime"""
+        paid_date = self.cleaned_data.get('paid_date')
+        if paid_date and timezone.is_naive(paid_date):
+            # datetime-local sends naive datetime, assume it's in local timezone (Asia/Baku)
+            from django.conf import settings
+            import pytz
+            local_tz = pytz.timezone(settings.TIME_ZONE)
+            paid_date = local_tz.localize(paid_date)
+        return paid_date
     
     class Meta:
         model = Debt
@@ -179,12 +222,75 @@ class DebtEditForm(forms.ModelForm):
         widgets = {
             'customer': forms.Select(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'date_given': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'date_given': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'promise_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'paid_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'paid_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
             'payment_method': forms.Select(attrs={'class': 'form-control'}),
         }
+
+
+class PaymentForm(forms.ModelForm):
+    """Form for adding partial payments"""
+    
+    def __init__(self, *args, debt=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.debt = debt
+        if debt:
+            # Set max amount to remaining amount
+            if 'amount' in self.fields:
+                self.fields['amount'].widget.attrs.update({
+                    'class': 'form-control',
+                    'step': '0.01',
+                    'max': str(debt.remaining_amount)
+                })
+                self.fields['amount'].help_text = _('Qalan məbləğ: {amount}₼').format(amount=debt.remaining_amount)
+        
+        # Set default payment_date to current time if not already set
+        if 'payment_date' in self.fields:
+            if not self.initial.get('payment_date') and not self.data:
+                now = timezone.now()
+                # Convert to local timezone for display in datetime-local input
+                if timezone.is_aware(now):
+                    now = timezone.localtime(now)
+                self.initial['payment_date'] = now.strftime('%Y-%m-%dT%H:%M')
+        
+        # Set default payment_date to current time if not already set
+        if 'payment_date' in self.fields:
+            if not self.initial.get('payment_date'):
+                now = timezone.now()
+                # Convert to local timezone for display in datetime-local input
+                if timezone.is_aware(now):
+                    now = timezone.localtime(now)
+                self.initial['payment_date'] = now.strftime('%Y-%m-%dT%H:%M')
+    
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if self.debt and amount:
+            if amount > self.debt.remaining_amount:
+                raise forms.ValidationError(
+                    _('Ödəniş məbləği qalan məbləğdən ({remaining}₼) çox ola bilməz.').format(
+                        remaining=self.debt.remaining_amount
+                    )
+                )
+        return amount
+    
+    class Meta:
+        model = Payment
+        fields = ['amount', 'payment_date', 'payment_method', 'notes']
+        widgets = {
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'payment_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
+            'payment_method': forms.Select(attrs={'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+    
+    def clean_payment_date(self):
+        """Convert naive datetime from datetime-local input to timezone-aware datetime"""
+        payment_date = self.cleaned_data.get('payment_date')
+        if payment_date and timezone.is_naive(payment_date):
+            payment_date = timezone.make_aware(payment_date)
+        return payment_date
 
 
 class CustomerImportForm(forms.Form):

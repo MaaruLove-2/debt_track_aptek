@@ -1,0 +1,73 @@
+{% extends 'main/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Qismən ödəniş əlavə et - Aptek Borc İzləyicisi" %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-cash-coin"></i> {% trans "Qismən ödəniş əlavə et" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>{% trans "Müştəri" %}:</strong> {{ debt.customer.name }} {{ debt.customer.surname }}<br>
+                    <strong>{% trans "Ümumi məbləğ" %}:</strong> ₼{{ debt.amount|floatformat:2 }}<br>
+                    <strong>{% trans "Ödənilmiş" %}:</strong> ₼{{ debt.paid_amount|floatformat:2 }}<br>
+                    <strong>{% trans "Qalan məbləğ" %}:</strong> <span class="text-danger">₼{{ debt.remaining_amount|floatformat:2 }}</span>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.amount.id_for_label }}" class="form-label">{% trans "Ödəniş məbləği" %} *</label>
+                        {{ form.amount }}
+                        {% if form.amount.errors %}
+                            <div class="text-danger">{{ form.amount.errors }}</div>
+                        {% endif %}
+                        {% if form.amount.help_text %}
+                            <small class="form-text text-muted">{{ form.amount.help_text }}</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.payment_date.id_for_label }}" class="form-label">{% trans "Ödəniş tarixi və vaxtı" %} *</label>
+                        {{ form.payment_date }}
+                        {% if form.payment_date.errors %}
+                            <div class="text-danger">{{ form.payment_date.errors }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">{% trans "Cari vaxt avtomatik doldurulur, lakin dəyişdirilə bilər" %}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.payment_method.id_for_label }}" class="form-label">{% trans "Ödəniş üsulu" %} *</label>
+                        {{ form.payment_method }}
+                        {% if form.payment_method.errors %}
+                            <div class="text-danger">{{ form.payment_method.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">{% trans "Qeydlər" %}</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <div class="text-danger">{{ form.notes.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> {% trans "Ödəniş əlavə et" %}
+                        </button>
+                        <a href="{% url 'debt_detail' debt.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> {% trans "Ləğv et" %}
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

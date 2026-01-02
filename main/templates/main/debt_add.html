@@ -6,40 +6,59 @@
 {% block extra_js %}
 <style>
     .debt-add-container {
-        background: white;
-        min-height: 100vh;
-        padding: 2rem 0;
+        background: #f8f9fa;
+        padding: 1.5rem 0;
     }
     .debt-card {
         border: none;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        background: white;
     }
     .debt-card .card-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border-radius: 15px 15px 0 0 !important;
-        padding: 1.5rem;
+        border-radius: 10px 10px 0 0 !important;
+        padding: 1rem;
     }
     .section-card {
-        border: none;
-        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
         margin-bottom: 1.5rem;
-        transition: transform 0.2s, box-shadow 0.2s;
+        background: white;
     }
-    .section-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    .section-card.customer-section {
+        border-color: #667eea;
+    }
+    .section-card.debt-section {
+        border-color: #4facfe;
+    }
+    .section-card .card-header {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
     }
     .section-card.customer-section .card-header {
-        background: linear-gradient(135deg, #667eea 0%,rgb(209, 205, 214) 100%);
+        background: linear-gradient(135deg, #667eea 0%, #9b7dd4 100%);
         color: white;
-        border-radius: 10px 10px 0 0;
+        border-radius: 6px 6px 0 0;
     }
     .section-card.debt-section .card-header {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);
         color: white;
-        border-radius: 10px 10px 0 0;
+        border-radius: 6px 6px 0 0;
+    }
+    .section-card .card-body {
+        padding: 1.5rem;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    .form-control {
+        border: 1px solid #ddd;
+        border-radius: 5px;
     }
     .form-control:focus {
         border-color: #667eea;
@@ -48,39 +67,69 @@
     .btn-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
-        border-radius: 8px;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-        transition: transform 0.2s;
-    }
-    .btn-primary:hover {
-        transform: scale(1.05);
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    }
-    .btn-secondary {
-        border-radius: 8px;
-        padding: 0.75rem 2rem;
-    }
-    .alert-success {
-        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-        border: none;
-        border-radius: 8px;
-        color: #155724;
     }
     .list-group-item {
-        border-radius: 8px;
+        border-radius: 5px;
         margin-bottom: 0.5rem;
-        transition: all 0.2s;
+        cursor: pointer;
+        border: 1px solid #d1d5db;
+        background-color: #ffffff;
+        transition: all 0.2s ease;
     }
     .list-group-item:hover {
-        background-color: #f8f9fa;
-        transform: translateX(5px);
+        background-color: #e0e7ff;
+        border-color: #667eea;
+        transform: translateX(3px);
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    }
+    #searchResults {
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        padding: 12px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        margin-top: 8px;
+    }
+    #customerResults {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .error-message {
+        background-color: #fee;
+        border: 2px solid #f00;
+        border-radius: 5px;
+        padding: 12px 15px;
+        margin: 10px 0;
+        color: #c00;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 2px 8px rgba(255, 0, 0, 0.2);
+        animation: shake 0.5s;
+    }
+    .error-message::before {
+        content: "⚠️";
+        font-size: 1.5rem;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    .field-error {
+        border: 2px solid #dc3545 !important;
+        background-color: #fff5f5 !important;
+    }
+    .field-error:focus {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
     }
     .divider-text {
         color: #667eea;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        font-size: 0.9rem;
     }
 </style>
 {% endblock %}
@@ -93,7 +142,21 @@
                 <div class="card-header">
                     <h4 class="mb-0"><i class="bi bi-plus-circle-fill"></i> {% trans "Yeni borc əlavə et" %}</h4>
                 </div>
-                <div class="card-body" style="background:rgb(219, 227, 236);">
+                <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                        <div class="error-message">
+                            {{ message }}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
                 <form method="post" id="debtForm">
                     {% csrf_token %}
                     
@@ -105,7 +168,7 @@
                         <div class="card-body">
                             <!-- Search Existing Customer -->
                             <div class="mb-3" >
-                                <label class="form-label">{% trans "Mövcud müştəri axtar" %}</label>
+                                <label class="form-label" for="customerSearch" style="cursor: pointer;">{% trans "Mövcud müştəri axtar" %}</label>
                                 <div class="input-group">
                                     <input type="text" 
                                            class="form-control" 
@@ -138,11 +201,16 @@
                                 <label class="form-label">{% trans "Yeni müştəri əlavə et" %}</label>
                                 <div class="row">
                                     <div class="col-md-8">
+                                        </label>
                                         {{ simplified_form.full_name }}
-                                        <h4 class="form-text text-muted">{{ simplified_form.full_name.help_text }}</small>
+                                        <small class="form-text text-muted">{% trans "Məs: Əli Məmmədov Bakı" %}</small>
                                     </div>
                                     <div class="col-md-4">
+                                        <label for="{{ simplified_form.phone.id_for_label }}" class="form-label">{% trans "Telefon" %} <span class="text-danger">*</span></label>
                                         {{ simplified_form.phone }}
+                                        {% if simplified_form.phone.errors %}
+                                            <div class="text-danger">{{ simplified_form.phone.errors }}</div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -165,23 +233,19 @@
                                     <div class="text-danger">{{ form.amount.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label"><i class="bi bi-calendar-event"></i> {% trans "Verilmə tarixi və vaxtı" %} *</label>
-                                    {{ form.date_given }}
-                                    {% if form.date_given.errors %}
-                                        <div class="text-danger">{{ form.date_given.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">{% trans "Borcun verildiyi tarix və vaxt" %}</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label"><i class="bi bi-calendar-check"></i> {% trans "Vəd tarixi" %} *</label>
-                                    {{ form.promise_date }}
-                                    {% if form.promise_date.errors %}
-                                        <div class="text-danger">{{ form.promise_date.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">{% trans "Müştərinin pulu qaytarmaq üçün vəd etdiyi tarix" %}</small>
-                                </div>
+                            <div class="mb-3">
+                                {{ form.date_given }}
+                                {% if form.date_given.errors %}
+                                    <div class="text-danger">{{ form.date_given.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><i class="bi bi-calendar-check"></i> {% trans "Vəd tarixi" %} *</label>
+                                {{ form.promise_date }}
+                                {% if form.promise_date.errors %}
+                                    <div class="text-danger">{{ form.promise_date.errors }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">{% trans "Müştərinin pulu qaytarmaq üçün vəd etdiyi tarix" %}</small>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">{% trans "Təsvir" %}</label>
@@ -224,6 +288,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let searchTimeout;
     
+    // Show preview when label is clicked
+    const searchLabel = document.querySelector('label[for="customerSearch"]');
+    if (searchLabel) {
+        searchLabel.addEventListener('click', function() {
+            searchInput.focus();
+        });
+    }
+    
+    // Show preview when input is focused or clicked
+    searchInput.addEventListener('focus', function() {
+        const query = this.value.trim();
+        if (query.length === 0) {
+            // Show preview of all customers when field is empty and focused
+            performSearch('', true); // Pass true to indicate preview mode
+        } else if (query.length >= 2) {
+            performSearch(query);
+        }
+    });
+    
     // Search as user types
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimeout);
@@ -233,6 +316,9 @@ document.addEventListener('DOMContentLoaded', function() {
             searchTimeout = setTimeout(() => {
                 performSearch(query);
             }, 300);
+        } else if (query.length === 0) {
+            // Show preview when input is cleared
+            performSearch('', true);
         } else {
             searchResults.style.display = 'none';
             customerResults.innerHTML = '';
@@ -248,13 +334,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Perform search
-    function performSearch(query) {
-        fetch(`{% url 'customer_search_api' %}?q=${encodeURIComponent(query)}`)
+    function performSearch(query, isPreview = false) {
+        const url = query ? 
+            `{% url 'customer_search_api' %}?q=${encodeURIComponent(query)}` : 
+            `{% url 'customer_search_api' %}?q=`;
+        
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 customerResults.innerHTML = '';
                 if (data.customers && data.customers.length > 0) {
-                    data.customers.forEach(customer => {
+                    // Limit preview to 10 customers if it's a preview
+                    const customersToShow = isPreview && !query ? data.customers.slice(0, 10) : data.customers;
+                    
+                    customersToShow.forEach(customer => {
                         const item = document.createElement('a');
                         item.href = '#';
                         item.className = 'list-group-item list-group-item-action';
@@ -272,6 +365,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         customerResults.appendChild(item);
                     });
+                    
+                    if (isPreview && !query && data.customers.length > 10) {
+                        const moreItem = document.createElement('div');
+                        moreItem.className = 'list-group-item text-muted text-center';
+                        moreItem.textContent = `{% trans "və daha" %} ${data.customers.length - 10} {% trans "müştəri... Axtarış üçün yazın" %}`;
+                        customerResults.appendChild(moreItem);
+                    }
+                    
                     searchResults.style.display = 'block';
                 } else {
                     customerResults.innerHTML = '<div class="list-group-item text-muted">{% trans "Müştəri tapılmadı" %}</div>';
@@ -325,14 +426,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Function to show error message
+    function showError(message, targetElement) {
+        // Remove existing error messages
+        const existingErrors = document.querySelectorAll('.error-message');
+        existingErrors.forEach(err => err.remove());
+        
+        // Remove error styling from fields
+        document.querySelectorAll('.field-error').forEach(field => {
+            field.classList.remove('field-error');
+        });
+        
+        // Create error message element
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.textContent = message;
+        
+        // Insert error message before the form
+        const form = document.getElementById('debtForm');
+        form.parentNode.insertBefore(errorDiv, form);
+        
+        // Add error styling to target field
+        if (targetElement) {
+            targetElement.classList.add('field-error');
+            targetElement.focus();
+        }
+        
+        // Scroll to error
+        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Auto-remove error after 5 seconds
+        setTimeout(() => {
+            errorDiv.remove();
+            if (targetElement) {
+                targetElement.classList.remove('field-error');
+            }
+        }, 5000);
+    }
+    
     // Form submission validation
     document.getElementById('debtForm').addEventListener('submit', function(e) {
         const customerId = customerIdInput.value;
         const fullName = fullNameInput.value.trim();
+        const phone = phoneInput.value.trim();
         
         if (!customerId && !fullName) {
             e.preventDefault();
-            alert('{% trans "Zəhmət olmasa müştəri seçin və ya yenisini yaradın" %}');
+            showError('{% trans "Zəhmət olmasa müştəri seçin və ya yenisini yaradın" %}', searchInput);
             return false;
         }
         
@@ -342,8 +482,13 @@ document.addEventListener('DOMContentLoaded', function() {
             fullNameInput.removeAttribute('required');
             phoneInput.removeAttribute('required');
         } else if (fullName) {
-            // Creating new customer
+            // Creating new customer - phone is required
             createNewCustomerInput.value = 'true';
+            if (!phone) {
+                e.preventDefault();
+                showError('{% trans "Zəhmət olmasa telefon nömrəsini daxil edin" %}', phoneInput);
+                return false;
+            }
         }
     });
 });

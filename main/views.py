@@ -5,11 +5,12 @@ from django.contrib.auth import authenticate, login as auth_login, logout as aut
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
+from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.db.models import Sum, Q
-from .models import Pharmacist, Customer, Debt
-from .forms import PharmacistForm, CustomerForm, DebtForm, DebtEditForm, CustomerImportForm, SimplifiedCustomerForm
+from .models import Pharmacist, Customer, Debt, Payment
+from .forms import PharmacistForm, CustomerForm, DebtForm, DebtEditForm, CustomerImportForm, SimplifiedCustomerForm, PaymentForm
 from .utils import parse_csv_file, parse_excel_file, import_customers_from_data
 
 
@@ -75,6 +76,47 @@ def home(request):
         return redirect('login')
     
     today = timezone.now().date()
+    from datetime import datetime
+    from calendar import monthrange
+    
+    # Get current month start and end dates
+    current_month_start = today.replace(day=1)
+    last_day = monthrange(today.year, today.month)[1]
+    current_month_end = today.replace(day=last_day)
+    
+    # Convert to datetime for filtering
+    month_start_datetime = timezone.make_aware(datetime.combine(current_month_start, datetime.min.time()))
+    month_end_datetime = timezone.make_aware(datetime.combine(current_month_end, datetime.max.time()))
+    
+    # Monthly statistics - debts given this month
+    monthly_given = Debt.objects.filter(
+        pharmacist=pharmacist,
+        date_given__gte=month_start_datetime,
+        date_given__lte=month_end_datetime
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Monthly statistics - payments/returns this month (partial + full)
+    monthly_partial_payments = Payment.objects.filter(
+        debt__pharmacist=pharmacist,
+        payment_date__gte=month_start_datetime,
+        payment_date__lte=month_end_datetime
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Full payments (debts fully paid this month, excluding those with partial payments)
+    monthly_full_payments = Debt.objects.filter(
+        pharmacist=pharmacist,
+        is_paid=True,
+        paid_date__gte=month_start_datetime,
+        paid_date__lte=month_end_datetime
+    ).exclude(
+        id__in=Payment.objects.filter(
+            payment_date__gte=month_start_datetime,
+            payment_date__lte=month_end_datetime
+        ).values_list('debt_id', flat=True).distinct()
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    monthly_returned = monthly_partial_payments + monthly_full_payments
+    monthly_balance = monthly_given - monthly_returned
     
     # Get statistics for current pharmacist only
     total_debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).count()
@@ -112,6 +154,9 @@ def home(request):
         'overdue_amount': overdue_amount,
         'recent_debts': recent_debts,
         'overdue_debts_list': overdue_debts_list,
+        'monthly_given': monthly_given,
+        'monthly_returned': monthly_returned,
+        'monthly_balance': monthly_balance,
     }
     
     return render(request, 'main/home.html', context)
@@ -130,21 +175,24 @@ def debt_list(request):
         auth_logout(request)
         return redirect('login')
     
-    # Only show debts for current pharmacist
-    debts = Debt.objects.filter(pharmacist=pharmacist).select_related('pharmacist', 'customer')
+    # Only show open (unpaid) debts for current pharmacist by default
+    debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).select_related('pharmacist', 'customer')
     
-    # Filter by status
+    # Filter by status (only if explicitly requested)
     status = request.GET.get('status')
-    if status == 'unpaid':
-        debts = debts.filter(is_paid=False)
-    elif status == 'paid':
-        debts = debts.filter(is_paid=True)
+    if status == 'paid':
+        # Show paid debts only if explicitly requested
+        debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=True).select_related('pharmacist', 'customer')
     elif status == 'overdue':
         today = timezone.now().date()
         debts = debts.filter(is_paid=False, promise_date__lt=today)
+    elif status == 'all':
+        # Show all debts (paid and unpaid) if explicitly requested
+        debts = Debt.objects.filter(pharmacist=pharmacist).select_related('pharmacist', 'customer')
+    # Default: show only unpaid (open) debts
     
     # Search
-    search = request.GET.get('search')
+    search = request.GET.get('search', '').strip()
     if search:
         debts = debts.filter(
             Q(customer__name__icontains=search) |
@@ -156,7 +204,7 @@ def debt_list(request):
     context = {
         'debts': debts,
         'selected_status': status,
-        'search_query': search,
+        'search_query': search if search else '',
     }
     
     return render(request, 'main/debt_list.html', context)
@@ -222,12 +270,24 @@ def debt_add(request):
             
             phone = request.POST.get('phone', '').strip()
             
-            # Create or get customer
+            # Validate phone number is provided
+            if not phone:
+                messages.error(request, _('Zəhmət olmasa telefon nömrəsini daxil edin.'))
+                form = DebtForm(pharmacist=pharmacist)
+                simplified_form = SimplifiedCustomerForm()
+                return render(request, 'main/debt_add.html', {
+                    'form': form,
+                    'simplified_form': simplified_form
+                })
+            
+            # Create or get customer (ensure uniqueness)
+            # Use get_or_create with all unique fields
             customer, created = Customer.objects.get_or_create(
                 name=name,
                 surname=surname,
+                patronymic=None,
                 place=place,
-                defaults={'phone': phone if phone else None, 'patronymic': None}
+                defaults={'phone': phone}
             )
             
             if created:
@@ -238,8 +298,12 @@ def debt_add(request):
                 from datetime import datetime as dt
                 date_given_str = request.POST.get('date_given')
                 # Parse datetime from form (format: YYYY-MM-DDTHH:mm)
+                # The browser sends local time, so we need to make it timezone-aware
                 if date_given_str:
-                    date_given = dt.strptime(date_given_str, '%Y-%m-%dT%H:%M')
+                    naive_dt = dt.strptime(date_given_str, '%Y-%m-%dT%H:%M')
+                    # Make it timezone-aware by assuming it's in the local timezone (Asia/Baku)
+                    # timezone.make_aware uses the default timezone from settings (Asia/Baku)
+                    date_given = timezone.make_aware(naive_dt)
                 else:
                     date_given = timezone.now()
                 
@@ -275,22 +339,60 @@ def debt_detail(request, pk):
     """View details of a specific debt"""
     # Admin/staff can view any debt
     if request.user.is_staff or request.user.is_superuser:
-        debt = get_object_or_404(Debt, pk=pk)
-        return render(request, 'main/debt_detail.html', {'debt': debt, 'is_admin': True})
+        debt = get_object_or_404(Debt.all_objects, pk=pk)
+        is_admin = True
+    else:
+        pharmacist = get_current_pharmacist(request)
+        if not pharmacist:
+            messages.error(request, _('Aptekçi profili tapılmadı.'))
+            auth_logout(request)
+            return redirect('login')
+        debt = get_object_or_404(Debt.all_objects, pk=pk, pharmacist=pharmacist)
+        is_admin = False
     
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
-        auth_logout(request)
-        return redirect('login')
+    # Get all payments for this debt
+    payments = debt.payments.all().order_by('-payment_date')
     
-    debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
-    return render(request, 'main/debt_detail.html', {'debt': debt, 'is_admin': False})
+    return render(request, 'main/debt_detail.html', {
+        'debt': debt, 
+        'is_admin': is_admin,
+        'payments': payments
+    })
 
 
 def is_admin(user):
     """Check if user is admin/staff"""
     return user.is_authenticated and (user.is_staff or user.is_superuser)
+
+
+@login_required
+@user_passes_test(is_admin)
+def debt_delete(request, pk):
+    """Delete a debt - only admins can delete, requires password confirmation"""
+    debt = get_object_or_404(Debt, pk=pk)
+    
+    if request.method == 'POST':
+        password = request.POST.get('password', '')
+        
+        if not password:
+            messages.error(request, _('Zəhmət olmasa parol daxil edin.'))
+            return render(request, 'main/debt_delete.html', {'debt': debt})
+        
+        # Verify password
+        if not check_password(password, request.user.password):
+            messages.error(request, _('Yanlış parol. Borc silinmədi.'))
+            return render(request, 'main/debt_delete.html', {'debt': debt})
+        
+        # Password is correct, soft delete the debt
+        customer_name = str(debt.customer)
+        amount = debt.amount
+        debt.soft_delete(request.user)
+        messages.success(request, _('Borc uğurla silindi: {customer} - {amount}₼').format(
+            customer=customer_name, amount=amount
+        ))
+        return redirect('debt_list')
+    
+    return render(request, 'main/debt_delete.html', {'debt': debt})
 
 
 @login_required
@@ -341,6 +443,42 @@ def debt_mark_paid(request, pk):
 
 
 @login_required
+def debt_add_payment(request, pk):
+    """Add a partial payment to a debt"""
+    # Admin/staff can add payment to any debt
+    if request.user.is_staff or request.user.is_superuser:
+        debt = get_object_or_404(Debt, pk=pk)
+    else:
+        pharmacist = get_current_pharmacist(request)
+        if not pharmacist:
+            messages.error(request, _('Aptekçi profili tapılmadı.'))
+            auth_logout(request)
+            return redirect('login')
+        debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
+    
+    if debt.is_paid:
+        messages.info(request, _('Bu borc artıq tam ödənilib.'))
+        return redirect('debt_detail', pk=pk)
+    
+    if request.method == 'POST':
+        form = PaymentForm(request.POST, debt=debt)
+        if form.is_valid():
+            payment = form.save(commit=False)
+            payment.debt = debt
+            payment.created_by = request.user
+            # payment_date is already set from the form, but ensure it's timezone-aware
+            if payment.payment_date and timezone.is_naive(payment.payment_date):
+                payment.payment_date = timezone.make_aware(payment.payment_date)
+            payment.save()
+            messages.success(request, _('Ödəniş uğurla əlavə edildi: {amount}₼').format(amount=payment.amount))
+            return redirect('debt_detail', pk=pk)
+    else:
+        form = PaymentForm(debt=debt)
+    
+    return render(request, 'main/debt_add_payment.html', {'form': form, 'debt': debt})
+
+
+@login_required
 def pharmacist_list(request):
     """List all pharmacists (admin only - can be removed or restricted)"""
     # Only show current pharmacist's info
@@ -388,6 +526,51 @@ def pharmacist_detail(request, pk):
     }
     
     return render(request, 'main/pharmacist_detail.html', context)
+
+
+@login_required
+def pharmacist_change_password(request, pk):
+    """Allow pharmacist to change their own password"""
+    current_pharmacist = get_current_pharmacist(request)
+    if not current_pharmacist:
+        messages.error(request, _('Aptekçi profili tapılmadı.'))
+        auth_logout(request)
+        return redirect('login')
+    
+    # Users can only change their own password
+    if current_pharmacist.pk != pk:
+        messages.error(request, _('Yalnız öz parolunuzu dəyişə bilərsiniz.'))
+        return redirect('pharmacist_detail', pk=current_pharmacist.pk)
+    
+    pharmacist = current_pharmacist
+    
+    if not pharmacist.user:
+        messages.error(request, _('Bu aptekçinin istifadəçi hesabı yoxdur.'))
+        return redirect('pharmacist_detail', pk=pk)
+    
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password', '')
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        
+        if not current_password:
+            messages.error(request, _('Zəhmət olmasa cari parolu daxil edin.'))
+        elif not new_password:
+            messages.error(request, _('Zəhmət olmasa yeni parolu daxil edin.'))
+        elif new_password != confirm_password:
+            messages.error(request, _('Yeni parol və təsdiq parolu uyğun deyil.'))
+        elif len(new_password) < 8:
+            messages.error(request, _('Parol minimum 8 simvol olmalıdır.'))
+        elif not pharmacist.user.check_password(current_password):
+            messages.error(request, _('Cari parol səhvdir.'))
+        else:
+            pharmacist.user.set_password(new_password)
+            pharmacist.user.save()
+            update_session_auth_hash(request, pharmacist.user)  # Keep user logged in
+            messages.success(request, _('Parol uğurla dəyişdirildi!'))
+            return redirect('pharmacist_detail', pk=pk)
+    
+    return render(request, 'main/pharmacist_change_password.html', {'pharmacist': pharmacist})
 
 
 @login_required
@@ -444,9 +627,25 @@ def customer_add(request):
     if request.method == 'POST':
         form = CustomerForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, _('Müştəri uğurla əlavə edildi!'))
-            return redirect('customer_list')
+            # Check if customer already exists (unique constraint)
+            try:
+                customer, created = Customer.objects.get_or_create(
+                    name=form.cleaned_data['name'],
+                    surname=form.cleaned_data['surname'],
+                    patronymic=form.cleaned_data.get('patronymic') or None,
+                    place=form.cleaned_data['place'],
+                    defaults={
+                        'phone': form.cleaned_data.get('phone'),
+                        'address': form.cleaned_data.get('address')
+                    }
+                )
+                if created:
+                    messages.success(request, _('Müştəri uğurla əlavə edildi!'))
+                else:
+                    messages.info(request, _('Bu müştəri artıq mövcuddur: {customer}').format(customer=customer))
+                return redirect('customer_list')
+            except Exception as e:
+                messages.error(request, _('Xəta: {error}').format(error=str(e)))
     else:
         form = CustomerForm()
     
@@ -615,16 +814,19 @@ def customer_search_api(request):
     from django.http import JsonResponse
     
     query = request.GET.get('q', '').strip()
-    if len(query) < 2:
-        return JsonResponse({'customers': []})
     
-    # Search in name, surname, place
-    customers = Customer.objects.filter(
-        Q(name__icontains=query) |
-        Q(surname__icontains=query) |
-        Q(place__icontains=query) |
-        Q(phone__icontains=query)
-    )[:20]
+    # If query is empty or very short, return recent customers as preview
+    if len(query) < 2:
+        # Return recent customers (last 20) as preview
+        customers = Customer.objects.all().order_by('-id')[:20]
+    else:
+        # Search in name, surname, place, phone
+        customers = Customer.objects.filter(
+            Q(name__icontains=query) |
+            Q(surname__icontains=query) |
+            Q(place__icontains=query) |
+            Q(phone__icontains=query)
+        )[:20]
     
     results = []
     for customer in customers:
@@ -651,6 +853,44 @@ def is_admin(user):
 def admin_dashboard(request):
     """Admin dashboard showing all pharmacists and their debts"""
     today = timezone.now().date()
+    from datetime import datetime, timedelta
+    from calendar import monthrange
+    
+    # Get current month start and end dates
+    current_month_start = today.replace(day=1)
+    last_day = monthrange(today.year, today.month)[1]
+    current_month_end = today.replace(day=last_day)
+    
+    # Convert to datetime for filtering
+    month_start_datetime = timezone.make_aware(datetime.combine(current_month_start, datetime.min.time()))
+    month_end_datetime = timezone.make_aware(datetime.combine(current_month_end, datetime.max.time()))
+    
+    # Monthly statistics - debts given this month
+    monthly_given = Debt.objects.filter(
+        date_given__gte=month_start_datetime,
+        date_given__lte=month_end_datetime
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Monthly statistics - payments/returns this month (partial + full)
+    monthly_partial_payments = Payment.objects.filter(
+        payment_date__gte=month_start_datetime,
+        payment_date__lte=month_end_datetime
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Full payments (debts fully paid this month, excluding those with partial payments)
+    monthly_full_payments = Debt.objects.filter(
+        is_paid=True,
+        paid_date__gte=month_start_datetime,
+        paid_date__lte=month_end_datetime
+    ).exclude(
+        id__in=Payment.objects.filter(
+            payment_date__gte=month_start_datetime,
+            payment_date__lte=month_end_datetime
+        ).values_list('debt_id', flat=True).distinct()
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    monthly_returned = monthly_partial_payments + monthly_full_payments
+    monthly_balance = monthly_given - monthly_returned
     
     # Get all pharmacists
     pharmacists = Pharmacist.objects.all().select_related('user')
@@ -700,6 +940,9 @@ def admin_dashboard(request):
         'pharmacist_stats': pharmacist_stats,
         'recent_debts': recent_debts,
         'overdue_debts_list': overdue_debts_list,
+        'monthly_given': monthly_given,
+        'monthly_returned': monthly_returned,
+        'monthly_balance': monthly_balance,
     }
     
     return render(request, 'main/admin_dashboard.html', context)
@@ -709,25 +952,33 @@ def admin_dashboard(request):
 @user_passes_test(is_admin)
 def admin_all_debts(request):
     """Admin view to see all debts from all pharmacists"""
-    debts = Debt.objects.all().select_related('pharmacist', 'customer')
+    # Only show open (unpaid) debts by default
+    debts = Debt.objects.filter(is_paid=False).select_related('pharmacist', 'customer')
     
     # Filter by pharmacist
     pharmacist_id = request.GET.get('pharmacist')
     if pharmacist_id:
         debts = debts.filter(pharmacist_id=pharmacist_id)
     
-    # Filter by status
+    # Filter by status (only if explicitly requested)
     status = request.GET.get('status')
-    if status == 'unpaid':
-        debts = debts.filter(is_paid=False)
-    elif status == 'paid':
-        debts = debts.filter(is_paid=True)
+    if status == 'paid':
+        # Show paid debts only if explicitly requested
+        debts = Debt.objects.filter(is_paid=True).select_related('pharmacist', 'customer')
+        if pharmacist_id:
+            debts = debts.filter(pharmacist_id=pharmacist_id)
     elif status == 'overdue':
         today = timezone.now().date()
         debts = debts.filter(is_paid=False, promise_date__lt=today)
+    elif status == 'all':
+        # Show all debts (paid and unpaid) if explicitly requested
+        debts = Debt.objects.all().select_related('pharmacist', 'customer')
+        if pharmacist_id:
+            debts = debts.filter(pharmacist_id=pharmacist_id)
+    # Default: show only unpaid (open) debts
     
     # Search
-    search = request.GET.get('search')
+    search = request.GET.get('search', '').strip()
     if search:
         debts = debts.filter(
             Q(customer__name__icontains=search) |
@@ -745,7 +996,7 @@ def admin_all_debts(request):
         'pharmacists': pharmacists,
         'selected_pharmacist': pharmacist_id,
         'selected_status': status,
-        'search_query': search,
+        'search_query': search if search else '',
     }
     
     return render(request, 'main/admin_all_debts.html', context)
@@ -808,7 +1059,11 @@ def admin_pharmacist_change_password(request, pk):
 @login_required
 def todays_operations(request):
     """View operations for a specific date (defaults to today)"""
-    today = timezone.now().date()
+    # Get current date in local timezone
+    now = timezone.now()
+    if timezone.is_aware(now):
+        now = timezone.localtime(now)
+    today = now.date()
     
     # Get selected date from GET parameter, default to today
     selected_date_str = request.GET.get('date', '')
@@ -827,30 +1082,72 @@ def todays_operations(request):
         # Show debts created on this date OR paid on this date
         # Use date range for SQLite compatibility
         from datetime import datetime, timedelta
-        start_datetime = timezone.make_aware(datetime.combine(selected_date, datetime.min.time()))
+        # Ensure we use the correct timezone when combining date and time
+        # Use timezone.make_aware with the default timezone (Asia/Baku from settings)
+        naive_start = datetime.combine(selected_date, datetime.min.time())
+        start_datetime = timezone.make_aware(naive_start)
         end_datetime = start_datetime + timedelta(days=1)
         
-        operations = Debt.objects.filter(
-            Q(date_given__gte=start_datetime, date_given__lt=end_datetime) | 
-            Q(paid_date__gte=start_datetime, paid_date__lt=end_datetime)
-        ).select_related('pharmacist', 'customer').order_by('-date_given', '-id')
+        # Separate debts given today from debts returned/paid today
+        debts_given_today = Debt.all_objects.filter(
+            date_given__gte=start_datetime, 
+            date_given__lt=end_datetime
+        ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
+        
+        debts_returned_today = Debt.all_objects.filter(
+            paid_date__gte=start_datetime, 
+            paid_date__lt=end_datetime
+        ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-paid_date', '-id')
+        
+        debts_deleted_today = Debt.all_objects.filter(
+            deleted_at__gte=start_datetime, 
+            deleted_at__lt=end_datetime
+        ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-deleted_at', '-id')
+        
+        # Get partial payments made today
+        partial_payments_today = Payment.objects.filter(
+            payment_date__gte=start_datetime, 
+            payment_date__lt=end_datetime
+        ).select_related('debt__customer', 'debt__pharmacist', 'created_by').order_by('-payment_date', '-id')
+        
+        # Get full payments (debts fully paid today) - exclude those with partial payments
+        full_payments_today = debts_returned_today.filter(is_paid=True).exclude(
+            id__in=partial_payments_today.values_list('debt_id', flat=True).distinct()
+        )
+        
+        # Combine all payments (partial + full) for display
+        all_payments_today = list(partial_payments_today)
+        for debt in full_payments_today:
+            # Create a payment-like object for full payments
+            all_payments_today.append({
+                'debt': debt,
+                'amount': debt.amount,
+                'payment_date': debt.paid_date,
+                'payment_method': debt.payment_method,
+                'notes': '',
+                'created_by': None,
+                'is_full_payment': True
+            })
+        
+        # Sort combined payments by date
+        all_payments_today.sort(key=lambda x: x.payment_date if hasattr(x, 'payment_date') else x['payment_date'], reverse=True)
         
         # Statistics
-        total_count = operations.count()
-        total_amount = operations.aggregate(total=Sum('amount'))['total'] or 0
-        paid_count = operations.filter(is_paid=True).count()
-        unpaid_count = operations.filter(is_paid=False).count()
-        paid_today_count = operations.filter(is_paid=True, paid_date__gte=start_datetime, paid_date__lt=end_datetime).count()
+        total_amount = debts_given_today.aggregate(total=Sum('amount'))['total'] or 0
+        deleted_count = debts_deleted_today.count()
+        payments_today_total = partial_payments_today.aggregate(total=Sum('amount'))['total'] or 0
+        payments_today_total += sum(debt.amount for debt in full_payments_today)
         
         context = {
-            'operations': operations,
+            'debts_given_today': debts_given_today,
+            'debts_returned_today': debts_returned_today,
+            'debts_deleted_today': debts_deleted_today,
+            'all_payments_today': all_payments_today,
             'selected_date': selected_date,
             'today': today,
-            'total_count': total_count,
             'total_amount': total_amount,
-            'paid_count': paid_count,
-            'unpaid_count': unpaid_count,
-            'paid_today_count': paid_today_count,
+            'deleted_count': deleted_count,
+            'payments_today_total': payments_today_total,
             'is_admin': True,
         }
         return render(request, 'main/todays_operations.html', context)
@@ -865,33 +1162,77 @@ def todays_operations(request):
     # Show debts created on this date OR paid on this date
     # Use date range for SQLite compatibility
     from datetime import datetime, timedelta
-    start_datetime = timezone.make_aware(datetime.combine(selected_date, datetime.min.time()))
+    # Ensure we use the correct timezone when combining date and time
+    # Use timezone.make_aware with the default timezone (Asia/Baku from settings)
+    naive_start = datetime.combine(selected_date, datetime.min.time())
+    start_datetime = timezone.make_aware(naive_start)
     end_datetime = start_datetime + timedelta(days=1)
     
-    operations = Debt.objects.filter(
-        pharmacist=pharmacist
-    ).filter(
-        Q(date_given__gte=start_datetime, date_given__lt=end_datetime) | 
-        Q(paid_date__gte=start_datetime, paid_date__lt=end_datetime)
-    ).select_related('pharmacist', 'customer').order_by('-date_given', '-id')
+    # Separate debts given today from debts returned/paid today
+    debts_given_today = Debt.all_objects.filter(
+        pharmacist=pharmacist,
+        date_given__gte=start_datetime, 
+        date_given__lt=end_datetime
+    ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
+    
+    debts_returned_today = Debt.all_objects.filter(
+        pharmacist=pharmacist,
+        paid_date__gte=start_datetime, 
+        paid_date__lt=end_datetime
+    ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-paid_date', '-id')
+    
+    debts_deleted_today = Debt.all_objects.filter(
+        pharmacist=pharmacist,
+        deleted_at__gte=start_datetime, 
+        deleted_at__lt=end_datetime
+    ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-deleted_at', '-id')
+    
+    # Get partial payments made today
+    partial_payments_today = Payment.objects.filter(
+        payment_date__gte=start_datetime, 
+        payment_date__lt=end_datetime,
+        debt__pharmacist=pharmacist
+    ).select_related('debt__customer', 'debt__pharmacist', 'created_by').order_by('-payment_date', '-id')
+    
+    # Get full payments (debts fully paid today) - exclude those with partial payments
+    full_payments_today = debts_returned_today.filter(is_paid=True).exclude(
+        id__in=partial_payments_today.values_list('debt_id', flat=True).distinct()
+    )
+    
+    # Combine all payments (partial + full) for display
+    all_payments_today = list(partial_payments_today)
+    for debt in full_payments_today:
+        # Create a payment-like object for full payments
+        all_payments_today.append({
+            'debt': debt,
+            'amount': debt.amount,
+            'payment_date': debt.paid_date,
+            'payment_method': debt.payment_method,
+            'notes': '',
+            'created_by': None,
+            'is_full_payment': True
+        })
+    
+    # Sort combined payments by date
+    all_payments_today.sort(key=lambda x: x.payment_date if hasattr(x, 'payment_date') else x['payment_date'], reverse=True)
     
     # Statistics
-    total_count = operations.count()
-    total_amount = operations.aggregate(total=Sum('amount'))['total'] or 0
-    paid_count = operations.filter(is_paid=True).count()
-    unpaid_count = operations.filter(is_paid=False).count()
-    paid_today_count = operations.filter(is_paid=True, paid_date__gte=start_datetime, paid_date__lt=end_datetime).count()
+    total_amount = debts_given_today.aggregate(total=Sum('amount'))['total'] or 0
+    deleted_count = debts_deleted_today.count()
+    payments_today_total = partial_payments_today.aggregate(total=Sum('amount'))['total'] or 0
+    payments_today_total += sum(debt.amount for debt in full_payments_today)
     
     context = {
         'pharmacist': pharmacist,
-        'operations': operations,
+        'debts_given_today': debts_given_today,
+        'debts_returned_today': debts_returned_today,
+        'debts_deleted_today': debts_deleted_today,
+        'all_payments_today': all_payments_today,
         'selected_date': selected_date,
         'today': today,
-        'total_count': total_count,
         'total_amount': total_amount,
-        'paid_count': paid_count,
-        'unpaid_count': unpaid_count,
-        'paid_today_count': paid_today_count,
+        'deleted_count': deleted_count,
+        'payments_today_total': payments_today_total,
         'is_admin': False,
     }
     

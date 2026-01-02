@@ -13,6 +13,9 @@
             <div class="col-md-6">
                 <p><strong>{% trans "Telefon" %}:</strong> {{ pharmacist.phone|default:_("Təqdim edilməyib") }}</p>
                 <p><strong>{% trans "E-poçt" %}:</strong> {{ pharmacist.email|default:_("Təqdim edilməyib") }}</p>
+                {% if pharmacist.user %}
+                <p><strong>{% trans "İstifadəçi adı" %}:</strong> <span class="badge bg-info">{{ pharmacist.user.username }}</span></p>
+                {% endif %}
             </div>
             <div class="col-md-6">
                 <p><strong>{% trans "Ümumi ödənilməmiş borclar" %}:</strong> <span class="badge bg-info">{{ pharmacist.unpaid_debt_count }}</span></p>
@@ -26,14 +29,23 @@
                 </p>
             </div>
         </div>
+        {% if pharmacist.user %}
+        <div class="mt-3">
+            <a href="{% url 'pharmacist_change_password' pharmacist.pk %}" class="btn btn-warning">
+                <i class="bi bi-key"></i> {% trans "Parolu dəyişdir" %}
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <h5>{% trans "Borclar" %}</h5>
+    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#debtsCollapse" role="button" aria-expanded="false" aria-controls="debtsCollapse" style="cursor: pointer;">
+        <h5 class="mb-0">{% trans "Borclar" %}</h5>
+        <i class="bi bi-chevron-down"></i>
     </div>
-    <div class="card-body">
+    <div class="collapse" id="debtsCollapse">
+    <div class="card-body" style="opacity: 0.85; font-size: 0.9rem;">
         <form method="get" class="mb-3">
             <div class="row">
                 <div class="col-md-4">
@@ -68,7 +80,12 @@
                     <tr>
                         <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                         <td>{{ debt.customer.place }}</td>
-                        <td>₼{{ debt.amount|floatformat:2 }}</td>
+                        <td>
+                            <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
+                            {% if debt.paid_amount > 0 %}
+                            <br><small class="text-muted">{% trans "Ümumi" %}: ₼{{ debt.amount|floatformat:2 }} | {% trans "Ödənilmiş" %}: ₼{{ debt.paid_amount|floatformat:2 }}</small>
+                            {% endif %}
+                        </td>
                         <td>{{ debt.date_given }}</td>
                         <td>
                             {{ debt.promise_date }}
@@ -99,6 +116,7 @@
                 </tbody>
             </table>
         </div>
+    </div>
     </div>
 </div>
 {% endblock %}

@@ -36,13 +36,35 @@
         .stat-card.pending {
             border-left-color: #ffc107;
         }
+        .clock-widget {
+            background-color: #0d6efd;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            min-width: 140px;
+            margin-left: 15px;
+        }
+        .clock-widget .date {
+            font-size: 11px;
+            opacity: 0.95;
+            margin-top: 4px;
+            text-align: center;
+        }
+        .clock-widget #current-time {
+            text-align: center;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'home' %}">
-                <i class="bi bi-capsule"></i> {% trans "Aptek Borc İzləyicisi" %}
+                <i class="bi bi-capsule"></i> {% if not user.is_staff and not user.is_superuser %}{% trans "Aptek Borc İzləyicisi" %}{% endif %}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -74,6 +96,7 @@
                             <i class="bi bi-calendar-day"></i> {% trans "Bugünkü əməliyyatlar" %}
                         </a>
                     </li>
+                    {% if user.is_staff or user.is_superuser %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-people"></i> {% trans "İdarə et" %}
@@ -82,6 +105,7 @@
                             <li><a class="dropdown-item" href="{% url 'customer_list' %}">{% trans "Müştərilər" %}</a></li>
                         </ul>
                     </li>
+                    {% endif %}
                     {% if user.is_staff or user.is_superuser %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-warning" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
@@ -100,6 +124,12 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <div class="clock-widget">
+                            <div id="current-time">--:--:--</div>
+                            <div class="date" id="current-date">-- -- ----</div>
+                        </div>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
@@ -127,9 +157,9 @@
     <div class="container-fluid mt-4">
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" data-auto-dismiss="{% if message.tags == 'success' %}true{% else %}false{% endif %}">
                     {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endfor %}
         {% endif %}
@@ -139,6 +169,48 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-dismiss success messages after 3 seconds
+            const successAlerts = document.querySelectorAll('.alert-success[data-auto-dismiss="true"]');
+            successAlerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 3000);
+            });
+            
+            function updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const timeString = `${hours}:${minutes}`;
+                
+                const days = ['Bazar', 'Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə'];
+                const months = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+                const dayName = days[now.getDay()];
+                const day = String(now.getDate()).padStart(2, '0');
+                const month = months[now.getMonth()];
+                const year = now.getFullYear();
+                const dateString = `${dayName}, ${day} ${month} ${year}`;
+                
+                const timeElement = document.getElementById('current-time');
+                const dateElement = document.getElementById('current-date');
+                if (timeElement) {
+                    timeElement.textContent = timeString;
+                }
+                if (dateElement) {
+                    dateElement.textContent = dateString;
+                }
+            }
+            
+            // Update clock immediately and then every minute
+            if (document.getElementById('current-time')) {
+                updateClock();
+                setInterval(updateClock, 60000);
+            }
+        });
+    </script>
     {% block extra_js %}
     {% endblock %}
 </body>

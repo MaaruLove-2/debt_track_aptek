@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 from .models import Pharmacist, Customer, Debt
 
 
@@ -19,7 +20,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Debt)
 class DebtAdmin(admin.ModelAdmin):
-    list_display = ['customer', 'pharmacist', 'amount', 'date_given', 'promise_date', 'is_paid', 'is_overdue_display']
+    list_display = ['customer', 'pharmacist', 'amount', 'date_given_display', 'promise_date', 'is_paid', 'paid_date_display', 'is_overdue_display']
     list_filter = ['is_paid', 'date_given', 'promise_date', 'pharmacist']
     search_fields = ['customer__name', 'customer__surname', 'customer__place', 'description']
     date_hierarchy = 'date_given'
@@ -46,3 +47,22 @@ class DebtAdmin(admin.ModelAdmin):
             return f"Yes ({obj.days_overdue} days)"
         return "No"
     is_overdue_display.short_description = 'Overdue'
+    
+    def get_queryset(self, request):
+        """Override to ensure timezone-aware datetimes are displayed correctly"""
+        qs = super().get_queryset(request)
+        return qs
+    
+    def date_given_display(self, obj):
+        """Display date_given in local timezone"""
+        if obj.date_given:
+            return timezone.localtime(obj.date_given).strftime('%d.%m.%Y %H:%M')
+        return '-'
+    date_given_display.short_description = 'Date Given'
+    
+    def paid_date_display(self, obj):
+        """Display paid_date in local timezone"""
+        if obj.paid_date:
+            return timezone.localtime(obj.paid_date).strftime('%d.%m.%Y %H:%M')
+        return '-'
+    paid_date_display.short_description = 'Paid Date'

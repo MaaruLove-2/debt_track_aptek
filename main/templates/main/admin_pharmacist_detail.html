@@ -85,7 +85,12 @@
                     <tr>
                         <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                         <td>{{ debt.customer.place }}</td>
-                        <td>₼{{ debt.amount|floatformat:2 }}</td>
+                        <td>
+                            <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
+                            {% if debt.paid_amount > 0 %}
+                            <br><small class="text-muted">{% trans "Ümumi" %}: ₼{{ debt.amount|floatformat:2 }} | {% trans "Ödənilmiş" %}: ₼{{ debt.paid_amount|floatformat:2 }}</small>
+                            {% endif %}
+                        </td>
                         <td>{{ debt.date_given }}</td>
                         <td>
                             {{ debt.promise_date }}

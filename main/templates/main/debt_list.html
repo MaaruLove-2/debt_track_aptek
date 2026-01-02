@@ -1,5 +1,6 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
+{% load tz %}
 
 {% block title %}{% trans "Bütün borclar - Aptek Borc İzləyicisi" %}{% endblock %}
 
@@ -17,15 +18,15 @@
                 <div class="col-md-4">
                     <label class="form-label">{% trans "Statusa görə filtrlə" %}</label>
                     <select name="status" class="form-select">
-                        <option value="">{% trans "Bütün statuslar" %}</option>
-                        <option value="unpaid" {% if selected_status == 'unpaid' %}selected{% endif %}>{% trans "Ödənilməyib" %}</option>
-                        <option value="paid" {% if selected_status == 'paid' %}selected{% endif %}>{% trans "Ödənilib" %}</option>
+                        <option value="" {% if not selected_status or selected_status == 'unpaid' %}selected{% endif %}>{% trans "Açıq borclar" %}</option>
                         <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>{% trans "Vaxtı keçmiş" %}</option>
+                        <option value="paid" {% if selected_status == 'paid' %}selected{% endif %}>{% trans "Ödənilib" %}</option>
+                        <option value="all" {% if selected_status == 'all' %}selected{% endif %}>{% trans "Hamısı" %}</option>
                     </select>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">{% trans "Axtar" %}</label>
-                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Müştəri adı, yer...' %}" value="{{ search_query }}">
+                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Müştəri adı, yer...' %}" value="{% if search_query %}{{ search_query }}{% endif %}" autocomplete="off">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">&nbsp;</label>
@@ -54,8 +55,13 @@
                         <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                         <td>{{ debt.customer.place }}</td>
                         <td>{{ debt.pharmacist }}</td>
-                        <td>₼{{ debt.amount|floatformat:2 }}</td>
-                        <td>{{ debt.date_given }}</td>
+                        <td>
+                            <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
+                            {% if debt.paid_amount > 0 %}
+                            <br><small class="text-muted">{% trans "Ümumi" %}: ₼{{ debt.amount|floatformat:2 }} | {% trans "Ödənilmiş" %}: ₼{{ debt.paid_amount|floatformat:2 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{% timezone "Asia/Baku" %}{{ debt.date_given|date:"d.m.Y H:i" }}{% endtimezone %}</td>
                         <td>
                             {{ debt.promise_date }}
                             {% if debt.is_overdue %}
