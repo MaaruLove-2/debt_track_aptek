@@ -1,10 +1,10 @@
 from django.contrib import admin
 from django.utils import timezone
-from .models import Pharmacist, Customer, Debt
+from .models import Cashier, Customer, Debt
 
 
-@admin.register(Pharmacist)
-class PharmacistAdmin(admin.ModelAdmin):
+@admin.register(Cashier)
+class CashierAdmin(admin.ModelAdmin):
     list_display = ['name', 'surname', 'user', 'phone', 'email', 'created_at']
     search_fields = ['name', 'surname', 'phone', 'email', 'user__username']
     list_filter = ['created_at']
@@ -20,15 +20,15 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Debt)
 class DebtAdmin(admin.ModelAdmin):
-    list_display = ['customer', 'pharmacist', 'amount', 'date_given_display', 'promise_date', 'is_paid', 'paid_date_display', 'is_overdue_display']
-    list_filter = ['is_paid', 'date_given', 'promise_date', 'pharmacist']
+    list_display = ['customer', 'cashier', 'amount', 'date_given_display', 'promise_date', 'is_paid', 'paid_date_display', 'is_overdue_display']
+    list_filter = ['is_paid', 'date_given', 'promise_date', 'cashier']
     search_fields = ['customer__name', 'customer__surname', 'customer__place', 'description']
     date_hierarchy = 'date_given'
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Debt Information', {
-            'fields': ('pharmacist', 'customer', 'amount', 'description')
+            'fields': ('cashier', 'customer', 'amount', 'description')
         }),
         ('Dates', {
             'fields': ('date_given', 'promise_date')

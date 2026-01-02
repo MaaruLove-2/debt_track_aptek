@@ -107,7 +107,7 @@
                                 <th>#</th>
                                 <th>{% trans "Müştəri" %}</th>
                                 {% if is_admin %}
-                                <th>{% trans "Aptekçi" %}</th>
+                                <th>{% trans "Kassir" %}</th>
                                 {% endif %}
                                 <th>{% trans "Məbləğ" %}</th>
                                 <th>{% trans "Tarix" %}</th>
@@ -129,7 +129,7 @@
                                 </td>
                                 {% if is_admin %}
                                 <td>
-                                    <span class="badge bg-info">{{ debt.pharmacist.name }} {{ debt.pharmacist.surname }}</span>
+                                    <span class="badge bg-info">{{ debt.cashier.name }} {{ debt.cashier.surname }}</span>
                                 </td>
                                 {% endif %}
                                 <td>
@@ -182,7 +182,7 @@
                                 <th>#</th>
                                 <th>{% trans "Müştəri" %}</th>
                                 {% if is_admin %}
-                                <th>{% trans "Aptekçi" %}</th>
+                                <th>{% trans "Kassir" %}</th>
                                 {% endif %}
                                 <th>{% trans "Ödəniş məbləği" %}</th>
                                 <th>{% trans "Ödəniş üsulu" %}</th>
@@ -211,7 +211,7 @@
                                 </td>
                                 {% if is_admin %}
                                 <td>
-                                    <span class="badge bg-info">{% if payment.is_full_payment %}{{ payment.debt.pharmacist.name }} {{ payment.debt.pharmacist.surname }}{% else %}{{ payment.debt.pharmacist.name }} {{ payment.debt.pharmacist.surname }}{% endif %}</span>
+                                    <span class="badge bg-info">{% if payment.is_full_payment %}{{ payment.debt.cashier.name }} {{ payment.debt.cashier.surname }}{% else %}{{ payment.debt.cashier.name }} {{ payment.debt.cashier.surname }}{% endif %}</span>
                                 </td>
                                 {% endif %}
                                 <td><strong class="text-success">₼{% if payment.is_full_payment %}{{ payment.amount|floatformat:2 }}{% else %}{{ payment.amount|floatformat:2 }}{% endif %}</strong></td>

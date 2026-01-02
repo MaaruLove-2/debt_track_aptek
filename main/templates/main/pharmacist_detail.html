@@ -1,37 +1,37 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
 
-{% block title %}{{ pharmacist }} - {% trans "Aptek Borc İzləyicisi" %}{% endblock %}
+{% block title %}{{ cashier }} - {% trans "Aptek Borc İzləyicisi" %}{% endblock %}
 
 {% block content %}
 <div class="card mb-4">
     <div class="card-header">
-        <h5><i class="bi bi-person-badge"></i> {{ pharmacist }}</h5>
+        <h5><i class="bi bi-person-badge"></i> {{ cashier }}</h5>
     </div>
     <div class="card-body">
         <div class="row">
             <div class="col-md-6">
-                <p><strong>{% trans "Telefon" %}:</strong> {{ pharmacist.phone|default:_("Təqdim edilməyib") }}</p>
-                <p><strong>{% trans "E-poçt" %}:</strong> {{ pharmacist.email|default:_("Təqdim edilməyib") }}</p>
-                {% if pharmacist.user %}
-                <p><strong>{% trans "İstifadəçi adı" %}:</strong> <span class="badge bg-info">{{ pharmacist.user.username }}</span></p>
+                <p><strong>{% trans "Telefon" %}:</strong> {{ cashier.phone|default:_("Təqdim edilməyib") }}</p>
+                <p><strong>{% trans "E-poçt" %}:</strong> {{ cashier.email|default:_("Təqdim edilməyib") }}</p>
+                {% if cashier.user %}
+                <p><strong>{% trans "İstifadəçi adı" %}:</strong> <span class="badge bg-info">{{ cashier.user.username }}</span></p>
                 {% endif %}
             </div>
             <div class="col-md-6">
-                <p><strong>{% trans "Ümumi ödənilməmiş borclar" %}:</strong> <span class="badge bg-info">{{ pharmacist.unpaid_debt_count }}</span></p>
-                <p><strong>{% trans "Ümumi məbləğ" %}:</strong> <span class="text-primary">₼{{ pharmacist.total_debt|floatformat:2 }}</span></p>
+                <p><strong>{% trans "Ümumi ödənilməmiş borclar" %}:</strong> <span class="badge bg-info">{{ cashier.unpaid_debt_count }}</span></p>
+                <p><strong>{% trans "Ümumi məbləğ" %}:</strong> <span class="text-primary">₼{{ cashier.total_debt|floatformat:2 }}</span></p>
                 <p><strong>{% trans "Vaxtı keçmiş borclar" %}:</strong> 
-                    {% if pharmacist.overdue_debt_count > 0 %}
-                        <span class="badge bg-danger">{{ pharmacist.overdue_debt_count }}</span>
+                    {% if cashier.overdue_debt_count > 0 %}
+                        <span class="badge bg-danger">{{ cashier.overdue_debt_count }}</span>
                     {% else %}
                         <span class="badge bg-success">0</span>
                     {% endif %}
                 </p>
             </div>
         </div>
-        {% if pharmacist.user %}
+        {% if cashier.user %}
         <div class="mt-3">
-            <a href="{% url 'pharmacist_change_password' pharmacist.pk %}" class="btn btn-warning">
+            <a href="{% url 'cashier_change_password' cashier.pk %}" class="btn btn-warning">
                 <i class="bi bi-key"></i> {% trans "Parolu dəyişdir" %}
             </a>
         </div>

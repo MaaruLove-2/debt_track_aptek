@@ -1,18 +1,18 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Aptekçiləri idarə et (Admin) - Aptek Borc İzləyicisi" %}{% endblock %}
+{% block title %}{% trans "Kassirləri idarə et (Admin) - Aptek Borc İzləyicisi" %}{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center bg-warning">
-        <h5><i class="bi bi-people"></i> {% trans "Aptekçiləri idarə et" %}</h5>
+        <h5><i class="bi bi-people"></i> {% trans "Kassirləri idarə et" %}</h5>
         <div>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-secondary me-2">
                 <i class="bi bi-arrow-left"></i> {% trans "Admin Paneli" %}
             </a>
-            <a href="{% url 'admin_pharmacist_add' %}" class="btn btn-sm btn-success">
-                <i class="bi bi-person-plus"></i> {% trans "Yeni aptekçi əlavə et" %}
+            <a href="{% url 'admin_cashier_add' %}" class="btn btn-sm btn-success">
+                <i class="bi bi-person-plus"></i> {% trans "Yeni kassir əlavə et" %}
             </a>
         </div>
     </div>
@@ -32,27 +32,27 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for pharmacist in pharmacists %}
+                    {% for cashier in cashiers %}
                     <tr>
-                        <td>{{ pharmacist.name }}</td>
-                        <td>{{ pharmacist.surname }}</td>
+                        <td>{{ cashier.name }}</td>
+                        <td>{{ cashier.surname }}</td>
                         <td>
-                            {% if pharmacist.user %}
-                                <span class="badge bg-success">{{ pharmacist.user.username }}</span>
+                            {% if cashier.user %}
+                                <span class="badge bg-success">{{ cashier.user.username }}</span>
                             {% else %}
                                 <span class="badge bg-danger">{% trans "Hesab yoxdur" %}</span>
                             {% endif %}
                         </td>
-                        <td>{{ pharmacist.phone|default:"-" }}</td>
-                        <td>{{ pharmacist.email|default:"-" }}</td>
-                        <td><span class="badge bg-info">{{ pharmacist.unpaid_debt_count }}</span></td>
-                        <td>₼{{ pharmacist.total_debt|floatformat:2 }}</td>
+                        <td>{{ cashier.phone|default:"-" }}</td>
+                        <td>{{ cashier.email|default:"-" }}</td>
+                        <td><span class="badge bg-info">{{ cashier.unpaid_debt_count }}</span></td>
+                        <td>₼{{ cashier.total_debt|floatformat:2 }}</td>
                         <td>
-                            <a href="{% url 'admin_pharmacist_detail' pharmacist.pk %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'admin_cashier_detail' cashier.pk %}" class="btn btn-sm btn-primary">
                                 <i class="bi bi-eye"></i> {% trans "Bax" %}
                             </a>
-                            {% if pharmacist.user %}
-                            <a href="{% url 'admin_pharmacist_change_password' pharmacist.pk %}" class="btn btn-sm btn-warning">
+                            {% if cashier.user %}
+                            <a href="{% url 'admin_cashier_change_password' cashier.pk %}" class="btn btn-sm btn-warning">
                                 <i class="bi bi-key"></i> {% trans "Parol" %}
                             </a>
                             {% else %}
@@ -62,7 +62,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted">{% trans "Hələ aptekçi yoxdur." %} <a href="{% url 'admin_pharmacist_add' %}">{% trans "Birini əlavə et" %}</a></td>
+                        <td colspan="8" class="text-center text-muted">{% trans "Hələ kassir yoxdur." %} <a href="{% url 'admin_cashier_add' %}">{% trans "Birini əlavə et" %}</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>

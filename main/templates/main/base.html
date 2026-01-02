@@ -115,7 +115,7 @@
                             <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}"><i class="bi bi-speedometer2"></i> {% trans "Admin Paneli" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'admin_all_debts' %}"><i class="bi bi-list-ul"></i> {% trans "Bütün borclar" %}</a></li>
                             <li><a class="dropdown-item" href="{% url 'todays_operations' %}"><i class="bi bi-calendar-day"></i> {% trans "Bugünkü əməliyyatlar" %}</a></li>
-                            <li><a class="dropdown-item" href="{% url 'admin_pharmacist_list' %}"><i class="bi bi-people"></i> {% trans "Aptekçiləri idarə et" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin_cashier_list' %}"><i class="bi bi-people"></i> {% trans "Kassirləri idarə et" %}</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/admin/" target="_blank"><i class="bi bi-gear"></i> Django Admin</a></li>
                         </ul>
@@ -135,8 +135,8 @@
                             <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            {% if user.pharmacist_profile %}
-                            <li><a class="dropdown-item" href="{% url 'pharmacist_detail' user.pharmacist_profile.pk %}">{% trans "Profil" %}</a></li>
+                            {% if user.cashier_profile %}
+                            <li><a class="dropdown-item" href="{% url 'cashier_detail' user.cashier_profile.pk %}">{% trans "Profil" %}</a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> {% trans "Çıxış" %}</a></li>

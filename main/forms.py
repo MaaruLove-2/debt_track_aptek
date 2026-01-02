@@ -2,10 +2,10 @@ from django import forms
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from .models import Pharmacist, Customer, Debt, Payment
+from .models import Cashier, Customer, Debt, Payment
 
 
-class PharmacistForm(forms.ModelForm):
+class CashierForm(forms.ModelForm):
     username = forms.CharField(
         label=_('İstifadəçi adı'),
         max_length=150,
@@ -23,7 +23,7 @@ class PharmacistForm(forms.ModelForm):
     )
     
     class Meta:
-        model = Pharmacist
+        model = Cashier
         fields = ['name', 'surname', 'phone', 'email']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -46,7 +46,7 @@ class PharmacistForm(forms.ModelForm):
         return cleaned_data
     
     def save(self, commit=True):
-        pharmacist = super().save(commit=False)
+        cashier = super().save(commit=False)
         username = self.cleaned_data.get('username')
         password = self.cleaned_data.get('password')
         
@@ -55,11 +55,11 @@ class PharmacistForm(forms.ModelForm):
                 username=username,
                 password=password
             )
-            pharmacist.user = user
+            cashier.user = user
         
         if commit:
-            pharmacist.save()
-        return pharmacist
+            cashier.save()
+        return cashier
 
 
 class CustomerForm(forms.ModelForm):
@@ -111,11 +111,11 @@ class DebtForm(forms.ModelForm):
         widget=forms.HiddenInput()
     )
     
-    def __init__(self, *args, pharmacist=None, **kwargs):
+    def __init__(self, *args, cashier=None, **kwargs):
         super().__init__(*args, **kwargs)
-        # Remove pharmacist field - it will be set automatically
-        if 'pharmacist' in self.fields:
-            del self.fields['pharmacist']
+        # Remove cashier field - it will be set automatically
+        if 'cashier' in self.fields:
+            del self.fields['cashier']
         
         # Make customer field not required initially (will be set via customer_id)
         if 'customer' in self.fields:

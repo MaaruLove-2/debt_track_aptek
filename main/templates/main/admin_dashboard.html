@@ -51,11 +51,11 @@
                 <a href="{% url 'admin_all_debts' %}" class="btn btn-primary me-2">
                     <i class="bi bi-list-ul"></i> {% trans "Bütün borclar" %}
                 </a>
-                <a href="{% url 'admin_pharmacist_list' %}" class="btn btn-success me-2">
-                    <i class="bi bi-people"></i> {% trans "Aptekçiləri idarə et" %}
+                <a href="{% url 'admin_cashier_list' %}" class="btn btn-success me-2">
+                    <i class="bi bi-people"></i> {% trans "Kassirləri idarə et" %}
                 </a>
-                <a href="{% url 'admin_pharmacist_add' %}" class="btn btn-info">
-                    <i class="bi bi-person-plus"></i> {% trans "Yeni aptekçi əlavə et" %}
+                <a href="{% url 'admin_cashier_add' %}" class="btn btn-info">
+                    <i class="bi bi-person-plus"></i> {% trans "Yeni kassir əlavə et" %}
                 </a>
             </div>
         </div>
@@ -66,14 +66,14 @@
     <div class="col-md-12">
         <div class="card">
             <div class="card-header">
-                <h5><i class="bi bi-people"></i> {% trans "Aptekçilərə baxış" %}</h5>
+                <h5><i class="bi bi-people"></i> {% trans "Kassirlərə baxış" %}</h5>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>{% trans "Aptekçi" %}</th>
+                                <th>{% trans "Kassir" %}</th>
                                 <th>{% trans "İstifadəçi adı" %}</th>
                                 <th>{% trans "Borclar" %}</th>
                                 <th>{% trans "Ümumi məbləğ" %}</th>
@@ -82,14 +82,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for stat in pharmacist_stats %}
+                            {% for stat in cashier_stats %}
                             <tr>
                                 <td>
-                                    <strong>{{ stat.pharmacist.name }} {{ stat.pharmacist.surname }}</strong>
+                                    <strong>{{ stat.cashier.name }} {{ stat.cashier.surname }}</strong>
                                 </td>
                                 <td>
                                     {% if stat.has_user %}
-                                        <span class="badge bg-success">{{ stat.pharmacist.user.username }}</span>
+                                        <span class="badge bg-success">{{ stat.cashier.user.username }}</span>
                                     {% else %}
                                         <span class="badge bg-danger">{% trans "Hesab yoxdur" %}</span>
                                     {% endif %}
@@ -104,11 +104,11 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="{% url 'admin_pharmacist_detail' stat.pharmacist.pk %}" class="btn btn-sm btn-primary">
+                                    <a href="{% url 'admin_cashier_detail' stat.cashier.pk %}" class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye"></i> {% trans "Bax" %}
                                     </a>
                                     {% if stat.has_user %}
-                                    <a href="{% url 'admin_pharmacist_change_password' stat.pharmacist.pk %}" class="btn btn-sm btn-warning">
+                                    <a href="{% url 'admin_cashier_change_password' stat.cashier.pk %}" class="btn btn-sm btn-warning">
                                         <i class="bi bi-key"></i> {% trans "Parol dəyiş" %}
                                     </a>
                                     {% endif %}
@@ -116,7 +116,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted">{% trans "Hələ aptekçi yoxdur" %}</td>
+                                <td colspan="6" class="text-center text-muted">{% trans "Hələ kassir yoxdur" %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -131,7 +131,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5><i class="bi bi-clock-history"></i> {% trans "Son borclar (Bütün aptekçilər)" %}</h5>
+                <h5><i class="bi bi-clock-history"></i> {% trans "Son borclar (Bütün kassirlər)" %}</h5>
             </div>
             <div class="card-body">
                 {% if recent_debts %}
@@ -145,7 +145,7 @@
                             </span>
                         </div>
                         <p class="mb-1">
-                            <small>{% trans "Aptekçi" %}: {{ debt.pharmacist }}</small><br>
+                            <small>{% trans "Kassir" %}: {{ debt.cashier }}</small><br>
                             <small>{% trans "Vəd tarixi" %}: {{ debt.promise_date }}</small>
                             {% if debt.is_overdue %}
                                 <span class="badge bg-danger ms-2">{{ debt.days_overdue }} {% trans "gün vaxtı keçib" %}</span>
@@ -173,7 +173,7 @@
                         <thead>
                             <tr>
                                 <th>{% trans "Müştəri" %}</th>
-                                <th>{% trans "Aptekçi" %}</th>
+                                <th>{% trans "Kassir" %}</th>
                                 <th>{% trans "Məbləğ" %}</th>
                                 <th>{% trans "Gün" %}</th>
                             </tr>
@@ -182,7 +182,7 @@
                             {% for debt in overdue_debts_list %}
                             <tr>
                                 <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
-                                <td><small>{{ debt.pharmacist }}</small></td>
+                                <td><small>{{ debt.cashier }}</small></td>
                                 <td>
                                     <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
                                     {% if debt.paid_amount > 0 %}

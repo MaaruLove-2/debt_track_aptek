@@ -20,14 +20,14 @@
                         <small class="text-muted">{{ debt.customer.place }}</small>
                     </div>
                     <div class="col-md-6">
-                        <strong>{% trans "Aptekçi" %}:</strong><br>
-                        {{ debt.pharmacist }}
+                        <strong>{% trans "Kassir" %}:</strong><br>
+                        {{ debt.cashier }}
                     </div>
                 </div>
                 <hr>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <small class="text-muted">{% trans "Ümumi məbləğ" %}:</small><br>
+                        <small class="text-muted">{% trans "İlkin məbləğ" %}:</small><br>
                         <small class="text-muted">₼{{ debt.amount|floatformat:2 }}</small>
                         {% if debt.paid_amount > 0 %}
                         <hr class="my-2">
@@ -121,7 +121,7 @@
                                 <tr>
                                     <th>{% trans "Tarix" %}</th>
                                     {% if is_admin %}
-                                    <th>{% trans "Aptekçi" %}</th>
+                                    <th>{% trans "Kassir" %}</th>
                                     {% endif %}
                                     <th>{% trans "Məbləğ" %}</th>
                                     <th>{% trans "Ödənilmiş" %}</th>
@@ -135,7 +135,7 @@
                                 <tr {% if d.pk == debt.pk %}class="table-info"{% endif %}>
                                     <td>{% timezone "Asia/Baku" %}{{ d.date_given|date:"d.m.Y H:i" }}{% endtimezone %}</td>
                                     {% if is_admin %}
-                                    <td>{{ d.pharmacist }}</td>
+                                    <td>{{ d.cashier }}</td>
                                     {% endif %}
                                     <td>₼{{ d.amount|floatformat:2 }}</td>
                                     <td>₼{{ d.paid_amount|floatformat:2 }}</td>

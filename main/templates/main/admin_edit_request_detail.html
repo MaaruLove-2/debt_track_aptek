@@ -19,7 +19,7 @@
                                 {{ edit_request.debt.customer.name }} {{ edit_request.debt.customer.surname }}
                             </a>
                         </p>
-                        <p><strong>{% trans "Aptekçi" %}:</strong> {{ edit_request.debt.pharmacist }}</p>
+                        <p><strong>{% trans "Kassir" %}:</strong> {{ edit_request.debt.cashier }}</p>
                         <p><strong>{% trans "Hazırkı məbləğ" %}:</strong> ₼{{ edit_request.debt.amount|floatformat:2 }}</p>
                         {% if edit_request.debt.paid_date %}
                         <p><strong>{% trans "Hazırkı ödəniş tarixi" %}:</strong> {{ edit_request.debt.paid_date|date:"d.m.Y H:i" }}</p>

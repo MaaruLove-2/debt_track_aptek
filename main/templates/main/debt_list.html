@@ -41,7 +41,7 @@
                     <tr>
                         <th>{% trans "Müştəri" %}</th>
                         <th>{% trans "Yer" %}</th>
-                        <th>{% trans "Aptekçi" %}</th>
+                        <th>{% trans "Kassir" %}</th>
                         <th>{% trans "Məbləğ" %}</th>
                         <th>{% trans "Verilmə tarixi" %}</th>
                         <th>{% trans "Vəd tarixi" %}</th>
@@ -54,7 +54,7 @@
                     <tr>
                         <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                         <td>{{ debt.customer.place }}</td>
-                        <td>{{ debt.pharmacist }}</td>
+                        <td>{{ debt.cashier }}</td>
                         <td>
                             <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>
                             {% if debt.paid_amount > 0 %}

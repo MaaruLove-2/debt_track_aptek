@@ -5,9 +5,9 @@ from django.core.validators import MinValueValidator
 from django.contrib.auth.models import User
 
 
-class Pharmacist(models.Model):
-    """Model representing a pharmacist"""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='pharmacist_profile', verbose_name=_('İstifadəçi'), null=True, blank=True)
+class Cashier(models.Model):
+    """Model representing a cashier"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='cashier_profile', verbose_name=_('İstifadəçi'), null=True, blank=True)
     name = models.CharField(_('Ad'), max_length=100)
     surname = models.CharField(_('Soyad'), max_length=100)
     phone = models.CharField(_('Telefon'), max_length=20, blank=True, null=True)
@@ -16,27 +16,27 @@ class Pharmacist(models.Model):
 
     class Meta:
         ordering = ['name', 'surname']
-        verbose_name = _('Aptekçi')
-        verbose_name_plural = _('Aptekçilər')
+        verbose_name = _('Kassir')
+        verbose_name_plural = _('Kassirlər')
 
     def __str__(self):
         return f"{self.name} {self.surname}"
 
     @property
     def total_debt(self):
-        """Calculate total remaining debt for this pharmacist"""
+        """Calculate total remaining debt for this cashier"""
         unpaid_debts = self.debts.filter(is_paid=False).prefetch_related('payments')
         return sum(debt.remaining_amount for debt in unpaid_debts)
 
     @property
     def overdue_debt_count(self):
-        """Count overdue debts for this pharmacist"""
+        """Count overdue debts for this cashier"""
         today = timezone.now().date()
         return self.debts.filter(is_paid=False, promise_date__lt=today).count()
     
     @property
     def unpaid_debt_count(self):
-        """Count unpaid debts for this pharmacist"""
+        """Count unpaid debts for this cashier"""
         return self.debts.filter(is_paid=False).count()
 
 
@@ -77,7 +77,7 @@ class Debt(models.Model):
         ('posterminal', _('Posterminal')),
     ]
     
-    pharmacist = models.ForeignKey(Pharmacist, on_delete=models.CASCADE, related_name='debts', verbose_name=_('Aptekçi'))
+    cashier = models.ForeignKey(Cashier, on_delete=models.CASCADE, related_name='debts', verbose_name=_('Kassir'))
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='debts', verbose_name=_('Müştəri'))
     amount = models.DecimalField(_('Məbləğ'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     date_given = models.DateTimeField(_('Verilmə tarixi'), default=timezone.now, help_text=_("Borcun verildiyi tarix və vaxt"))
@@ -190,40 +190,6 @@ class Payment(models.Model):
             'posterminal': 'Posterminal',
         }
         return method_map.get(self.payment_method, self.payment_method)
-
-
-class Payment(models.Model):
-    """Model for tracking partial payments on debts"""
-    PAYMENT_METHOD_CHOICES = [
-        ('cash', _('Nağd')),
-        ('card', _('Kart')),
-        ('posterminal', _('Posterminal')),
-    ]
-    
-    debt = models.ForeignKey(Debt, on_delete=models.CASCADE, related_name='payments', verbose_name=_('Borc'))
-    amount = models.DecimalField(_('Məbləğ'), max_digits=10, decimal_places=2, validators=[MinValueValidator(0.01)])
-    payment_date = models.DateTimeField(_('Ödəniş tarixi'), default=timezone.now, help_text=_("Ödəniş tarixi və vaxtı"))
-    payment_method = models.CharField(_('Ödəniş üsulu'), max_length=20, choices=PAYMENT_METHOD_CHOICES, help_text=_("Ödəniş üsulu"))
-    notes = models.TextField(_('Qeydlər'), blank=True, null=True, help_text=_("Ödənişlə bağlı əlavə qeydlər"))
-    created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_payments', verbose_name=_('Yaradan'))
-    created_at = models.DateTimeField(_('Yaradılma tarixi'), auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-payment_date', '-created_at']
-        verbose_name = _('Ödəniş')
-        verbose_name_plural = _('Ödənişlər')
-    
-    def __str__(self):
-        return f"{self.debt.customer} - {self.amount}₼ ({self.payment_date.strftime('%d.%m.%Y %H:%M')})"
-    
-    def get_payment_method_display_az(self):
-        """Get payment method display name in Azerbaijani"""
-        method_map = {
-            'cash': 'Nağd',
-            'card': 'Kart',
-            'posterminal': 'Posterminal',
-        }
-        return method_map.get(self.payment_method, self.payment_method)
     
     def save(self, *args, **kwargs):
         """Override save to check if debt is fully paid"""
@@ -245,7 +211,7 @@ class DebtEditRequest(models.Model):
     ]
     
     debt = models.ForeignKey(Debt, on_delete=models.CASCADE, related_name='edit_requests', verbose_name=_('Borc'))
-    requested_by = models.ForeignKey(Pharmacist, on_delete=models.CASCADE, related_name='edit_requests', verbose_name=_('Tələb edən'))
+    requested_by = models.ForeignKey(Cashier, on_delete=models.CASCADE, related_name='edit_requests', verbose_name=_('Tələb edən'))
     requested_amount = models.DecimalField(_('Tələb olunan məbləğ'), max_digits=10, decimal_places=2, null=True, blank=True)
     requested_paid_date = models.DateTimeField(_('Tələb olunan ödəniş tarixi'), null=True, blank=True)
     reason = models.TextField(_('Səbəb'), help_text=_("Dəyişiklik səbəbi"))

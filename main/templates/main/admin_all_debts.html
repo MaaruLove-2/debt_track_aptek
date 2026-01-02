@@ -15,12 +15,12 @@
         <form method="get" class="mb-4">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label">{% trans "Aptekçiyə görə filtrlə" %}</label>
-                    <select name="pharmacist" class="form-select">
-                        <option value="">{% trans "Bütün aptekçilər" %}</option>
-                        {% for pharmacist in pharmacists %}
-                        <option value="{{ pharmacist.pk }}" {% if selected_pharmacist == pharmacist.pk|stringformat:"s" %}selected{% endif %}>
-                            {{ pharmacist }}
+                    <label class="form-label">{% trans "Kassirə görə filtrlə" %}</label>
+                    <select name="cashier" class="form-select">
+                        <option value="">{% trans "Bütün kassirlər" %}</option>
+                        {% for cashier in cashiers %}
+                        <option value="{{ cashier.pk }}" {% if selected_cashier == cashier.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ cashier }}
                         </option>
                         {% endfor %}
                     </select>
@@ -36,7 +36,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">{% trans "Axtar" %}</label>
-                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Müştəri, aptekçi adı...' %}" value="{% if search_query %}{{ search_query }}{% endif %}" autocomplete="off">
+                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Müştəri, kassir adı...' %}" value="{% if search_query %}{{ search_query }}{% endif %}" autocomplete="off">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">&nbsp;</label>
@@ -49,7 +49,7 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>{% trans "Aptekçi" %}</th>
+                        <th>{% trans "Kassir" %}</th>
                         <th>{% trans "Müştəri" %}</th>
                         <th>{% trans "Yer" %}</th>
                         <th>{% trans "Məbləğ" %}</th>
@@ -62,7 +62,7 @@
                 <tbody>
                     {% for debt in debts %}
                     <tr>
-                        <td><strong>{{ debt.pharmacist }}</strong></td>
+                        <td><strong>{{ debt.cashier }}</strong></td>
                         <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                         <td>{{ debt.customer.place }}</td>
                         <td>

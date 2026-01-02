@@ -9,13 +9,13 @@ from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.db.models import Sum, Q
-from .models import Pharmacist, Customer, Debt, Payment
-from .forms import PharmacistForm, CustomerForm, DebtForm, DebtEditForm, CustomerImportForm, SimplifiedCustomerForm, PaymentForm
+from .models import Cashier, Customer, Debt, Payment
+from .forms import CashierForm, CustomerForm, DebtForm, DebtEditForm, CustomerImportForm, SimplifiedCustomerForm, PaymentForm
 from .utils import parse_csv_file, parse_excel_file, import_customers_from_data
 
 
 def login_view(request):
-    """Login page for pharmacists and admins"""
+    """Login page for cashiers and admins"""
     # Always logout user when accessing login page to ensure fresh login
     if request.user.is_authenticated:
         auth_logout(request)
@@ -31,12 +31,12 @@ def login_view(request):
             # Redirect based on user type
             if user.is_staff or user.is_superuser:
                 return redirect('admin_dashboard')
-            # Check if regular user has pharmacist profile
+            # Check if regular user has cashier profile
             try:
-                pharmacist = user.pharmacist_profile
+                cashier = user.cashier_profile
                 return redirect('home')
-            except Pharmacist.DoesNotExist:
-                messages.error(request, _('Bu istifadəçi aptekçi profili yoxdur. Zəhmət olmasa administratorla əlaqə saxlayın.'))
+            except Cashier.DoesNotExist:
+                messages.error(request, _('Bu istifadəçi kassir profili yoxdur. Zəhmət olmasa administratorla əlaqə saxlayın.'))
                 auth_logout(request)
                 return redirect('login')
         else:
@@ -53,11 +53,11 @@ def logout_view(request):
 
 
 @login_required
-def get_current_pharmacist(request):
-    """Helper function to get current pharmacist from logged-in user"""
+def get_current_cashier(request):
+    """Helper function to get current cashier from logged-in user"""
     try:
-        return request.user.pharmacist_profile
-    except Pharmacist.DoesNotExist:
+        return request.user.cashier_profile
+    except Cashier.DoesNotExist:
         return None
 
 
@@ -68,9 +68,9 @@ def home(request):
     if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
         return redirect('admin_dashboard')
     
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı. Zəhmət olmasa administratorla əlaqə saxlayın.'))
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı. Zəhmət olmasa administratorla əlaqə saxlayın.'))
         auth_logout(request)
         return redirect('login')
     
@@ -89,21 +89,21 @@ def home(request):
     
     # Monthly statistics - debts given this month
     monthly_given = Debt.objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         date_given__gte=month_start_datetime,
         date_given__lte=month_end_datetime
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     # Monthly statistics - payments/returns this month (partial + full)
     monthly_partial_payments = Payment.objects.filter(
-        debt__pharmacist=pharmacist,
+        debt__cashier=cashier,
         payment_date__gte=month_start_datetime,
         payment_date__lte=month_end_datetime
     ).aggregate(total=Sum('amount'))['total'] or 0
     
     # Full payments (debts fully paid this month, excluding those with partial payments)
     monthly_full_payments = Debt.objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         is_paid=True,
         paid_date__gte=month_start_datetime,
         paid_date__lte=month_end_datetime
@@ -117,9 +117,9 @@ def home(request):
     monthly_returned = monthly_partial_payments + monthly_full_payments
     monthly_balance = monthly_given - monthly_returned
     
-    # Get statistics for current pharmacist only
+    # Get statistics for current cashier only
     # Prefetch payments to calculate remaining_amount correctly
-    unpaid_debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).select_related('customer').prefetch_related('payments')
+    unpaid_debts = Debt.objects.filter(cashier=cashier, is_paid=False).select_related('customer').prefetch_related('payments')
     unpaid_debts_list = list(unpaid_debts)  # Evaluate queryset once
     total_debts = len(unpaid_debts_list)
     
@@ -127,7 +127,7 @@ def home(request):
     total_amount = sum(debt.remaining_amount for debt in unpaid_debts_list)
     
     overdue_debts_qs = Debt.objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         is_paid=False,
         promise_date__lt=today
     ).select_related('customer').prefetch_related('payments')
@@ -137,18 +137,18 @@ def home(request):
     # Calculate overdue remaining amount (not total amount)
     overdue_amount = sum(debt.remaining_amount for debt in overdue_debts_list)
     
-    # Recent debts for current pharmacist
-    recent_debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).order_by('-date_given')[:10]
+    # Recent debts for current cashier
+    recent_debts = Debt.objects.filter(cashier=cashier, is_paid=False).order_by('-date_given')[:10]
     
-    # Overdue debts for current pharmacist
+    # Overdue debts for current cashier
     overdue_debts_list = Debt.objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         is_paid=False,
         promise_date__lt=today
     ).order_by('promise_date')[:10]
     
     context = {
-        'pharmacist': pharmacist,
+        'cashier': cashier,
         'total_debts': total_debts,
         'total_amount': total_amount,
         'overdue_debts': overdue_count,
@@ -170,26 +170,26 @@ def debt_list(request):
     if request.user.is_staff or request.user.is_superuser:
         return redirect('admin_all_debts')
     
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
-    # Only show open (unpaid) debts for current pharmacist by default
-    debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).select_related('pharmacist', 'customer')
+    # Only show open (unpaid) debts for current cashier by default
+    debts = Debt.objects.filter(cashier=cashier, is_paid=False).select_related('cashier', 'customer')
     
     # Filter by status (only if explicitly requested)
     status = request.GET.get('status')
     if status == 'paid':
         # Show paid debts only if explicitly requested
-        debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=True).select_related('pharmacist', 'customer')
+        debts = Debt.objects.filter(cashier=cashier, is_paid=True).select_related('cashier', 'customer')
     elif status == 'overdue':
         today = timezone.now().date()
         debts = debts.filter(is_paid=False, promise_date__lt=today)
     elif status == 'all':
         # Show all debts (paid and unpaid) if explicitly requested
-        debts = Debt.objects.filter(pharmacist=pharmacist).select_related('pharmacist', 'customer')
+        debts = Debt.objects.filter(cashier=cashier).select_related('cashier', 'customer')
     # Default: show only unpaid (open) debts
     
     # Search
@@ -214,19 +214,19 @@ def debt_list(request):
 @login_required
 def debt_add(request):
     """Add a new debt with simplified customer creation"""
-    # Admin/staff users need to select a pharmacist, so redirect to admin dashboard
+    # Admin/staff users need to select a cashier, so redirect to admin dashboard
     if request.user.is_staff or request.user.is_superuser:
-        messages.info(request, _('Admin istifadəçiləri borc əlavə etmək üçün aptekçi seçməlidir. Admin paneldən istifadə edin.'))
+        messages.info(request, _('Admin istifadəçiləri borc əlavə etmək üçün kassir seçməlidir. Admin paneldən istifadə edin.'))
         return redirect('admin_dashboard')
     
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
     if request.method == 'POST':
-        form = DebtForm(request.POST, pharmacist=pharmacist)
+        form = DebtForm(request.POST, cashier=cashier)
         
         customer_id = request.POST.get('customer_id', '').strip()
         customer_input = request.POST.get('customer_input', '').strip()
@@ -240,7 +240,7 @@ def debt_add(request):
                 customer = Customer.objects.get(pk=customer_id)
             except Customer.DoesNotExist:
                 messages.error(request, _('Müştəri tapılmadı.'))
-                form = DebtForm(pharmacist=pharmacist)
+                form = DebtForm(cashier=cashier)
                 return render(request, 'main/debt_add.html', {
                     'form': form
                 })
@@ -248,7 +248,7 @@ def debt_add(request):
             # Validate phone is provided for new customers
             if not phone:
                 messages.error(request, _('Yeni müştəri üçün telefon nömrəsi mütləqdir.'))
-                form = DebtForm(pharmacist=pharmacist)
+                form = DebtForm(cashier=cashier)
                 return render(request, 'main/debt_add.html', {
                     'form': form
                 })
@@ -295,7 +295,7 @@ def debt_add(request):
         
         if not customer:
             messages.error(request, _('Zəhmət olmasa müştəri adını daxil edin.'))
-            form = DebtForm(pharmacist=pharmacist)
+            form = DebtForm(cashier=cashier)
             return render(request, 'main/debt_add.html', {
                 'form': form
             })
@@ -337,7 +337,7 @@ def debt_add(request):
                 date_given = timezone.make_aware(date_given)
             
             debt = Debt(
-                pharmacist=pharmacist,
+                cashier=cashier,
                 customer=customer,
                 amount=request.POST.get('amount'),
                 date_given=date_given,
@@ -351,7 +351,7 @@ def debt_add(request):
         except Exception as e:
             messages.error(request, _('Xəta: {error}').format(error=str(e)))
     else:
-        form = DebtForm(pharmacist=pharmacist)
+        form = DebtForm(cashier=cashier)
     
     return render(request, 'main/debt_add.html', {
         'form': form
@@ -366,31 +366,31 @@ def debt_detail(request, pk):
         debt = get_object_or_404(Debt.all_objects, pk=pk)
         is_admin = True
     else:
-        pharmacist = get_current_pharmacist(request)
-        if not pharmacist:
-            messages.error(request, _('Aptekçi profili tapılmadı.'))
+        cashier = get_current_cashier(request)
+        if not cashier:
+            messages.error(request, _('Kassir profili tapılmadı.'))
             auth_logout(request)
             return redirect('login')
-        debt = get_object_or_404(Debt.all_objects, pk=pk, pharmacist=pharmacist)
+        debt = get_object_or_404(Debt.all_objects, pk=pk, cashier=cashier)
         is_admin = False
     
     # Get all payments for this debt
     payments = debt.payments.all().order_by('-payment_date')
     
-    # Get all debts for this customer (same pharmacist if not admin)
+    # Get all debts for this customer (same cashier if not admin)
     if is_admin:
         customer_debts = Debt.objects.filter(
             customer=debt.customer,
             is_paid=False,
             is_deleted=False
-        ).select_related('pharmacist', 'customer').order_by('-date_given')
+        ).select_related('cashier', 'customer').order_by('-date_given')
     else:
         customer_debts = Debt.objects.filter(
             customer=debt.customer,
-            pharmacist=pharmacist,
+            cashier=cashier,
             is_paid=False,
             is_deleted=False
-        ).select_related('pharmacist', 'customer').order_by('-date_given')
+        ).select_related('cashier', 'customer').order_by('-date_given')
     
     # Calculate totals
     total_remaining = sum(d.remaining_amount for d in customer_debts)
@@ -469,12 +469,12 @@ def debt_mark_paid(request, pk):
     if request.user.is_staff or request.user.is_superuser:
         debt = get_object_or_404(Debt, pk=pk)
     else:
-        pharmacist = get_current_pharmacist(request)
-        if not pharmacist:
-            messages.error(request, _('Aptekçi profili tapılmadı.'))
+        cashier = get_current_cashier(request)
+        if not cashier:
+            messages.error(request, _('Kassir profili tapılmadı.'))
             auth_logout(request)
             return redirect('login')
-        debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
+        debt = get_object_or_404(Debt, pk=pk, cashier=cashier)
     
     if request.method == 'POST':
         payment_method = request.POST.get('payment_method')
@@ -498,12 +498,12 @@ def debt_add_payment(request, pk):
     if request.user.is_staff or request.user.is_superuser:
         debt = get_object_or_404(Debt, pk=pk)
     else:
-        pharmacist = get_current_pharmacist(request)
-        if not pharmacist:
-            messages.error(request, _('Aptekçi profili tapılmadı.'))
+        cashier = get_current_cashier(request)
+        if not cashier:
+            messages.error(request, _('Kassir profili tapılmadı.'))
             auth_logout(request)
             return redirect('login')
-        debt = get_object_or_404(Debt, pk=pk, pharmacist=pharmacist)
+        debt = get_object_or_404(Debt, pk=pk, cashier=cashier)
     
     if debt.is_paid:
         messages.info(request, _('Bu borc artıq tam ödənilib.'))
@@ -535,12 +535,12 @@ def debt_pay_all_customer(request, pk):
         debt = get_object_or_404(Debt.all_objects, pk=pk)
         is_admin = True
     else:
-        pharmacist = get_current_pharmacist(request)
-        if not pharmacist:
-            messages.error(request, _('Aptekçi profili tapılmadı.'))
+        cashier = get_current_cashier(request)
+        if not cashier:
+            messages.error(request, _('Kassir profili tapılmadı.'))
             auth_logout(request)
             return redirect('login')
-        debt = get_object_or_404(Debt.all_objects, pk=pk, pharmacist=pharmacist)
+        debt = get_object_or_404(Debt.all_objects, pk=pk, cashier=cashier)
         is_admin = False
     
     if request.method == 'POST':
@@ -559,7 +559,7 @@ def debt_pay_all_customer(request, pk):
         else:
             customer_debts = Debt.objects.filter(
                 customer=debt.customer,
-                pharmacist=pharmacist,
+                cashier=cashier,
                 is_paid=False,
                 is_deleted=False
             )
@@ -602,7 +602,7 @@ def debt_pay_all_customer(request, pk):
     else:
         customer_debts = Debt.objects.filter(
             customer=debt.customer,
-            pharmacist=pharmacist,
+            cashier=cashier,
             is_paid=False,
             is_deleted=False
         )
@@ -618,35 +618,35 @@ def debt_pay_all_customer(request, pk):
 
 
 @login_required
-def pharmacist_list(request):
-    """List all pharmacists (admin only - can be removed or restricted)"""
-    # Only show current pharmacist's info
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+def cashier_list(request):
+    """List all cashiers (admin only - can be removed or restricted)"""
+    # Only show current cashier's info
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
-    # For now, just redirect to pharmacist detail
-    return redirect('pharmacist_detail', pk=pharmacist.pk)
+    # For now, just redirect to cashier detail
+    return redirect('cashier_detail', pk=cashier.pk)
 
 
 @login_required
-def pharmacist_detail(request, pk):
-    """View pharmacist details and their debts"""
-    current_pharmacist = get_current_pharmacist(request)
-    if not current_pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+def cashier_detail(request, pk):
+    """View cashier details and their debts"""
+    current_cashier = get_current_cashier(request)
+    if not current_cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
     # Users can only view their own profile
-    if current_pharmacist.pk != pk:
+    if current_cashier.pk != pk:
         messages.error(request, _('Yalnız öz profilinizə baxa bilərsiniz.'))
-        return redirect('pharmacist_detail', pk=current_pharmacist.pk)
+        return redirect('cashier_detail', pk=current_cashier.pk)
     
-    pharmacist = current_pharmacist
-    debts = pharmacist.debts.all().select_related('customer')
+    cashier = current_cashier
+    debts = cashier.debts.all().select_related('customer')
     
     # Filter by status
     status = request.GET.get('status')
@@ -659,33 +659,33 @@ def pharmacist_detail(request, pk):
         debts = debts.filter(is_paid=False, promise_date__lt=today)
     
     context = {
-        'pharmacist': pharmacist,
+        'cashier': cashier,
         'debts': debts,
         'selected_status': status,
     }
     
-    return render(request, 'main/pharmacist_detail.html', context)
+    return render(request, 'main/cashier_detail.html', context)
 
 
 @login_required
-def pharmacist_change_password(request, pk):
-    """Allow pharmacist to change their own password"""
-    current_pharmacist = get_current_pharmacist(request)
-    if not current_pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+def cashier_change_password(request, pk):
+    """Allow cashier to change their own password"""
+    current_cashier = get_current_cashier(request)
+    if not current_cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
     # Users can only change their own password
-    if current_pharmacist.pk != pk:
+    if current_cashier.pk != pk:
         messages.error(request, _('Yalnız öz parolunuzu dəyişə bilərsiniz.'))
-        return redirect('pharmacist_detail', pk=current_pharmacist.pk)
+        return redirect('cashier_detail', pk=current_cashier.pk)
     
-    pharmacist = current_pharmacist
+    cashier = current_cashier
     
-    if not pharmacist.user:
-        messages.error(request, _('Bu aptekçinin istifadəçi hesabı yoxdur.'))
-        return redirect('pharmacist_detail', pk=pk)
+    if not cashier.user:
+        messages.error(request, _('Bu kassirin istifadəçi hesabı yoxdur.'))
+        return redirect('cashier_detail', pk=pk)
     
     if request.method == 'POST':
         current_password = request.POST.get('current_password', '')
@@ -700,35 +700,35 @@ def pharmacist_change_password(request, pk):
             messages.error(request, _('Yeni parol və təsdiq parolu uyğun deyil.'))
         elif len(new_password) < 8:
             messages.error(request, _('Parol minimum 8 simvol olmalıdır.'))
-        elif not pharmacist.user.check_password(current_password):
+        elif not cashier.user.check_password(current_password):
             messages.error(request, _('Cari parol səhvdir.'))
         else:
-            pharmacist.user.set_password(new_password)
-            pharmacist.user.save()
-            update_session_auth_hash(request, pharmacist.user)  # Keep user logged in
+            cashier.user.set_password(new_password)
+            cashier.user.save()
+            update_session_auth_hash(request, cashier.user)  # Keep user logged in
             messages.success(request, _('Parol uğurla dəyişdirildi!'))
-            return redirect('pharmacist_detail', pk=pk)
+            return redirect('cashier_detail', pk=pk)
     
-    return render(request, 'main/pharmacist_change_password.html', {'pharmacist': pharmacist})
+    return render(request, 'main/cashier_change_password.html', {'cashier': cashier})
 
 
 @login_required
-def pharmacist_add(request):
-    """Add a new pharmacist (with user account) - redirect to admin"""
+def cashier_add(request):
+    """Add a new cashier (with user account) - redirect to admin"""
     if not request.user.is_staff:
-        messages.error(request, _('Yalnız administratorlar yeni aptekçi əlavə edə bilər.'))
+        messages.error(request, _('Yalnız administratorlar yeni kassir əlavə edə bilər.'))
         return redirect('home')
-    return redirect('admin_pharmacist_add')
+    return redirect('admin_cashier_add')
 
 
 @login_required
 def customer_list(request):
-    """List all customers (shared across all pharmacists)"""
-    # Admin/staff can access customer list without pharmacist profile
+    """List all customers (shared across all cashiers)"""
+    # Admin/staff can access customer list without cashier profile
     if not (request.user.is_staff or request.user.is_superuser):
-        pharmacist = get_current_pharmacist(request)
-        if not pharmacist:
-            messages.error(request, _('Aptekçi profili tapılmadı.'))
+        cashier = get_current_cashier(request)
+        if not cashier:
+            messages.error(request, _('Kassir profili tapılmadı.'))
             auth_logout(request)
             return redirect('login')
     
@@ -754,12 +754,12 @@ def customer_list(request):
 
 @login_required
 def customer_add(request):
-    """Add a new customer (shared across all pharmacists)"""
-    # Admin/staff can add customers without pharmacist profile
+    """Add a new customer (shared across all cashiers)"""
+    # Admin/staff can add customers without cashier profile
     if not (request.user.is_staff or request.user.is_superuser):
-        pharmacist = get_current_pharmacist(request)
-        if not pharmacist:
-            messages.error(request, _('Aptekçi profili tapılmadı.'))
+        cashier = get_current_cashier(request)
+        if not cashier:
+            messages.error(request, _('Kassir profili tapılmadı.'))
             auth_logout(request)
             return redirect('login')
     
@@ -832,37 +832,37 @@ def customer_edit(request, pk):
 
 @login_required
 def reminders(request):
-    """View all overdue debts (reminders) for current pharmacist"""
+    """View all overdue debts (reminders) for current cashier"""
     # If admin/staff, show all overdue debts
     if request.user.is_staff or request.user.is_superuser:
         today = timezone.now().date()
         overdue_debts = Debt.objects.filter(
             is_paid=False,
             promise_date__lte=today
-        ).select_related('pharmacist', 'customer').order_by('promise_date')
+        ).select_related('cashier', 'customer').order_by('promise_date')
         
         context = {
-            'pharmacist': None,
+            'cashier': None,
             'overdue_debts': overdue_debts,
             'is_admin': True,
         }
         return render(request, 'main/reminders.html', context)
     
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
     today = timezone.now().date()
     overdue_debts = Debt.objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         is_paid=False,
         promise_date__lte=today
-    ).select_related('pharmacist', 'customer').order_by('promise_date')
+    ).select_related('cashier', 'customer').order_by('promise_date')
     
     context = {
-        'pharmacist': pharmacist,
+        'cashier': cashier,
         'overdue_debts': overdue_debts,
         'is_admin': False,
     }
@@ -873,9 +873,9 @@ def reminders(request):
 @login_required
 def customer_import(request):
     """Import customers from 1C file (CSV or Excel)"""
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
@@ -1029,7 +1029,7 @@ def is_admin(user):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    """Admin dashboard showing all pharmacists and their debts"""
+    """Admin dashboard showing all cashiers and their debts"""
     today = timezone.now().date()
     from datetime import datetime, timedelta
     from calendar import monthrange
@@ -1070,12 +1070,12 @@ def admin_dashboard(request):
     monthly_returned = monthly_partial_payments + monthly_full_payments
     monthly_balance = monthly_given - monthly_returned
     
-    # Get all pharmacists
-    pharmacists = Pharmacist.objects.all().select_related('user')
+    # Get all cashiers
+    cashiers = Cashier.objects.all().select_related('user')
     
-    # Get statistics for all pharmacists
+    # Get statistics for all cashiers
     # Prefetch payments to calculate remaining_amount correctly
-    unpaid_debts = Debt.objects.filter(is_paid=False).select_related('customer', 'pharmacist').prefetch_related('payments')
+    unpaid_debts = Debt.objects.filter(is_paid=False).select_related('customer', 'cashier').prefetch_related('payments')
     unpaid_debts_list = list(unpaid_debts)  # Evaluate queryset once
     total_debts = len(unpaid_debts_list)
     
@@ -1085,44 +1085,44 @@ def admin_dashboard(request):
     overdue_debts_qs = Debt.objects.filter(
         is_paid=False,
         promise_date__lt=today
-    ).select_related('customer', 'pharmacist').prefetch_related('payments')
+    ).select_related('customer', 'cashier').prefetch_related('payments')
     overdue_debts_list = list(overdue_debts_qs)  # Evaluate queryset once
     overdue_debts_count = len(overdue_debts_list)
     
     # Calculate overdue remaining amount (not total amount)
     overdue_amount = sum(debt.remaining_amount for debt in overdue_debts_list)
     
-    # Get pharmacist statistics
-    pharmacist_stats = []
-    for pharmacist in pharmacists:
+    # Get cashier statistics
+    cashier_stats = []
+    for cashier in cashiers:
         # Prefetch debts and payments for accurate remaining_amount calculation
-        unpaid_debts = pharmacist.debts.filter(is_paid=False).prefetch_related('payments')
+        unpaid_debts = cashier.debts.filter(is_paid=False).prefetch_related('payments')
         total_remaining = sum(debt.remaining_amount for debt in unpaid_debts)
         
         stats = {
-            'pharmacist': pharmacist,
+            'cashier': cashier,
             'total_debt': total_remaining,  # Use calculated remaining amount
             'debt_count': unpaid_debts.count(),
-            'overdue_count': pharmacist.overdue_debt_count,
-            'has_user': pharmacist.user is not None,
+            'overdue_count': cashier.overdue_debt_count,
+            'has_user': cashier.user is not None,
         }
-        pharmacist_stats.append(stats)
+        cashier_stats.append(stats)
     
-    # Recent debts from all pharmacists
-    recent_debts = Debt.objects.filter(is_paid=False).select_related('pharmacist', 'customer').order_by('-date_given')[:20]
+    # Recent debts from all cashiers
+    recent_debts = Debt.objects.filter(is_paid=False).select_related('cashier', 'customer').order_by('-date_given')[:20]
     
-    # Overdue debts from all pharmacists
+    # Overdue debts from all cashiers
     overdue_debts_list = Debt.objects.filter(
         is_paid=False,
         promise_date__lt=today
-    ).select_related('pharmacist', 'customer').order_by('promise_date')[:20]
+    ).select_related('cashier', 'customer').order_by('promise_date')[:20]
     
     context = {
         'total_debts': total_debts,
         'total_amount': total_amount,
         'overdue_debts': overdue_debts_count,
         'overdue_amount': overdue_amount,
-        'pharmacist_stats': pharmacist_stats,
+        'cashier_stats': cashier_stats,
         'recent_debts': recent_debts,
         'overdue_debts_list': overdue_debts_list,
         'monthly_given': monthly_given,
@@ -1136,30 +1136,30 @@ def admin_dashboard(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_all_debts(request):
-    """Admin view to see all debts from all pharmacists"""
+    """Admin view to see all debts from all cashiers"""
     # Only show open (unpaid) debts by default
-    debts = Debt.objects.filter(is_paid=False).select_related('pharmacist', 'customer')
+    debts = Debt.objects.filter(is_paid=False).select_related('cashier', 'customer')
     
-    # Filter by pharmacist
-    pharmacist_id = request.GET.get('pharmacist')
-    if pharmacist_id:
-        debts = debts.filter(pharmacist_id=pharmacist_id)
+    # Filter by cashier
+    cashier_id = request.GET.get('cashier')
+    if cashier_id:
+        debts = debts.filter(cashier_id=cashier_id)
     
     # Filter by status (only if explicitly requested)
     status = request.GET.get('status')
     if status == 'paid':
         # Show paid debts only if explicitly requested
-        debts = Debt.objects.filter(is_paid=True).select_related('pharmacist', 'customer')
-        if pharmacist_id:
-            debts = debts.filter(pharmacist_id=pharmacist_id)
+        debts = Debt.objects.filter(is_paid=True).select_related('cashier', 'customer')
+        if cashier_id:
+            debts = debts.filter(cashier_id=cashier_id)
     elif status == 'overdue':
         today = timezone.now().date()
         debts = debts.filter(is_paid=False, promise_date__lt=today)
     elif status == 'all':
         # Show all debts (paid and unpaid) if explicitly requested
-        debts = Debt.objects.all().select_related('pharmacist', 'customer')
-        if pharmacist_id:
-            debts = debts.filter(pharmacist_id=pharmacist_id)
+        debts = Debt.objects.all().select_related('cashier', 'customer')
+        if cashier_id:
+            debts = debts.filter(cashier_id=cashier_id)
     # Default: show only unpaid (open) debts
     
     # Search
@@ -1169,17 +1169,17 @@ def admin_all_debts(request):
             Q(customer__name__icontains=search) |
             Q(customer__surname__icontains=search) |
             Q(customer__place__icontains=search) |
-            Q(pharmacist__name__icontains=search) |
-            Q(pharmacist__surname__icontains=search) |
+            Q(cashier__name__icontains=search) |
+            Q(cashier__surname__icontains=search) |
             Q(description__icontains=search)
         )
     
-    pharmacists = Pharmacist.objects.all()
+    cashiers = Cashier.objects.all()
     
     context = {
         'debts': debts,
-        'pharmacists': pharmacists,
-        'selected_pharmacist': pharmacist_id,
+        'cashiers': cashiers,
+        'selected_cashier': cashier_id,
         'selected_status': status,
         'search_query': search if search else '',
     }
@@ -1189,38 +1189,38 @@ def admin_all_debts(request):
 
 @login_required
 @user_passes_test(is_admin)
-def admin_pharmacist_list(request):
-    """Admin view to manage all pharmacists"""
-    pharmacists = Pharmacist.objects.all().select_related('user')
-    return render(request, 'main/admin_pharmacist_list.html', {'pharmacists': pharmacists})
+def admin_cashier_list(request):
+    """Admin view to manage all cashiers"""
+    cashiers = Cashier.objects.all().select_related('user')
+    return render(request, 'main/admin_cashier_list.html', {'cashiers': cashiers})
 
 
 @login_required
 @user_passes_test(is_admin)
-def admin_pharmacist_add(request):
-    """Admin view to add new pharmacist with user account"""
+def admin_cashier_add(request):
+    """Admin view to add new cashier with user account"""
     if request.method == 'POST':
-        form = PharmacistForm(request.POST)
+        form = CashierForm(request.POST)
         if form.is_valid():
-            pharmacist = form.save()
-            messages.success(request, _('Aptekçi və istifadəçi hesabı uğurla yaradıldı!'))
-            messages.info(request, _('İstifadəçi adı: {username}').format(username=pharmacist.user.username))
-            return redirect('admin_pharmacist_list')
+            cashier = form.save()
+            messages.success(request, _('Kassir və istifadəçi hesabı uğurla yaradıldı!'))
+            messages.info(request, _('İstifadəçi adı: {username}').format(username=cashier.user.username))
+            return redirect('admin_cashier_list')
     else:
-        form = PharmacistForm()
+        form = CashierForm()
     
-    return render(request, 'main/admin_pharmacist_add.html', {'form': form})
+    return render(request, 'main/admin_cashier_add.html', {'form': form})
 
 
 @login_required
 @user_passes_test(is_admin)
-def admin_pharmacist_change_password(request, pk):
-    """Admin view to change pharmacist password"""
-    pharmacist = get_object_or_404(Pharmacist, pk=pk)
+def admin_cashier_change_password(request, pk):
+    """Admin view to change cashier password"""
+    cashier = get_object_or_404(Cashier, pk=pk)
     
-    if not pharmacist.user:
-        messages.error(request, _('Bu aptekçinin istifadəçi hesabı yoxdur.'))
-        return redirect('admin_pharmacist_list')
+    if not cashier.user:
+        messages.error(request, _('Bu kassirin istifadəçi hesabı yoxdur.'))
+        return redirect('admin_cashier_list')
     
     if request.method == 'POST':
         new_password = request.POST.get('new_password')
@@ -1233,12 +1233,12 @@ def admin_pharmacist_change_password(request, pk):
         elif len(new_password) < 8:
             messages.error(request, _('Parol ən azı 8 simvol olmalıdır.'))
         else:
-            pharmacist.user.set_password(new_password)
-            pharmacist.user.save()
+            cashier.user.set_password(new_password)
+            cashier.user.save()
             messages.success(request, _('Parol uğurla dəyişdirildi!'))
-            return redirect('admin_pharmacist_list')
+            return redirect('admin_cashier_list')
     
-    return render(request, 'main/admin_pharmacist_change_password.html', {'pharmacist': pharmacist})
+    return render(request, 'main/admin_cashier_change_password.html', {'cashier': cashier})
 
 
 @login_required
@@ -1262,7 +1262,7 @@ def todays_operations(request):
     else:
         selected_date = today
     
-    # If admin/staff, show all operations from all pharmacists for selected date
+    # If admin/staff, show all operations from all cashiers for selected date
     if request.user.is_staff or request.user.is_superuser:
         # Show debts created on this date OR paid on this date
         # Use date range for SQLite compatibility
@@ -1277,23 +1277,23 @@ def todays_operations(request):
         debts_given_today = Debt.all_objects.filter(
             date_given__gte=start_datetime, 
             date_given__lt=end_datetime
-        ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
+        ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
         
         debts_returned_today = Debt.all_objects.filter(
             paid_date__gte=start_datetime, 
             paid_date__lt=end_datetime
-        ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-paid_date', '-id')
+        ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-paid_date', '-id')
         
         debts_deleted_today = Debt.all_objects.filter(
             deleted_at__gte=start_datetime, 
             deleted_at__lt=end_datetime
-        ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-deleted_at', '-id')
+        ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-deleted_at', '-id')
         
         # Get partial payments made today
         partial_payments_today = Payment.objects.filter(
             payment_date__gte=start_datetime, 
             payment_date__lt=end_datetime
-        ).select_related('debt__customer', 'debt__pharmacist', 'created_by').order_by('-payment_date', '-id')
+        ).select_related('debt__customer', 'debt__cashier', 'created_by').order_by('-payment_date', '-id')
         
         # Get full payments (debts fully paid today) - exclude those with partial payments
         full_payments_today = debts_returned_today.filter(is_paid=True).exclude(
@@ -1337,10 +1337,10 @@ def todays_operations(request):
         }
         return render(request, 'main/todays_operations.html', context)
     
-    # For regular pharmacists, show only their operations for selected date
-    pharmacist = get_current_pharmacist(request)
-    if not pharmacist:
-        messages.error(request, _('Aptekçi profili tapılmadı.'))
+    # For regular cashiers, show only their operations for selected date
+    cashier = get_current_cashier(request)
+    if not cashier:
+        messages.error(request, _('Kassir profili tapılmadı.'))
         auth_logout(request)
         return redirect('login')
     
@@ -1355,29 +1355,29 @@ def todays_operations(request):
     
     # Separate debts given today from debts returned/paid today
     debts_given_today = Debt.all_objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         date_given__gte=start_datetime, 
         date_given__lt=end_datetime
-    ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
+    ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
     
     debts_returned_today = Debt.all_objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         paid_date__gte=start_datetime, 
         paid_date__lt=end_datetime
-    ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-paid_date', '-id')
+    ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-paid_date', '-id')
     
     debts_deleted_today = Debt.all_objects.filter(
-        pharmacist=pharmacist,
+        cashier=cashier,
         deleted_at__gte=start_datetime, 
         deleted_at__lt=end_datetime
-    ).select_related('pharmacist', 'customer', 'deleted_by').prefetch_related('payments').order_by('-deleted_at', '-id')
+    ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-deleted_at', '-id')
     
     # Get partial payments made today
     partial_payments_today = Payment.objects.filter(
         payment_date__gte=start_datetime, 
         payment_date__lt=end_datetime,
-        debt__pharmacist=pharmacist
-    ).select_related('debt__customer', 'debt__pharmacist', 'created_by').order_by('-payment_date', '-id')
+        debt__cashier=cashier
+        ).select_related('debt__customer', 'debt__cashier', 'created_by').order_by('-payment_date', '-id')
     
     # Get full payments (debts fully paid today) - exclude those with partial payments
     full_payments_today = debts_returned_today.filter(is_paid=True).exclude(
@@ -1408,7 +1408,7 @@ def todays_operations(request):
     payments_today_total += sum(debt.amount for debt in full_payments_today)
     
     context = {
-        'pharmacist': pharmacist,
+        'cashier': cashier,
         'debts_given_today': debts_given_today,
         'debts_returned_today': debts_returned_today,
         'debts_deleted_today': debts_deleted_today,
@@ -1426,10 +1426,10 @@ def todays_operations(request):
 
 @login_required
 @user_passes_test(is_admin)
-def admin_pharmacist_detail(request, pk):
-    """Admin view to see pharmacist details and all their debts"""
-    pharmacist = get_object_or_404(Pharmacist, pk=pk)
-    debts = pharmacist.debts.all().select_related('customer')
+def admin_cashier_detail(request, pk):
+    """Admin view to see cashier details and all their debts"""
+    cashier = get_object_or_404(Cashier, pk=pk)
+    debts = cashier.debts.all().select_related('customer')
     
     # Filter by status
     status = request.GET.get('status')
@@ -1442,9 +1442,9 @@ def admin_pharmacist_detail(request, pk):
         debts = debts.filter(is_paid=False, promise_date__lt=today)
     
     context = {
-        'pharmacist': pharmacist,
+        'cashier': cashier,
         'debts': debts,
         'selected_status': status,
     }
     
-    return render(request, 'main/admin_pharmacist_detail.html', context)
+    return render(request, 'main/admin_cashier_detail.html', context)

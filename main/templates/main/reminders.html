@@ -14,9 +14,9 @@
                 <div class="card-header bg-warning">
                     <h6 class="mb-0">
                         {% if is_admin %}
-                        <i class="bi bi-shield-check"></i> {% trans "Bütün aptekçilər" %}
+                        <i class="bi bi-shield-check"></i> {% trans "Bütün kassirlər" %}
                         {% else %}
-                        <i class="bi bi-person-badge"></i> {{ pharmacist }}
+                        <i class="bi bi-person-badge"></i> {{ cashier }}
                         {% endif %}
                         <span class="badge bg-danger ms-2">{{ overdue_debts|length }} {% trans "vaxtı keçmiş borc" %}</span>
                     </h6>
@@ -29,7 +29,7 @@
                                     <th>{% trans "Müştəri" %}</th>
                                     <th>{% trans "Yer" %}</th>
                                     {% if is_admin %}
-                                    <th>{% trans "Aptekçi" %}</th>
+                                    <th>{% trans "Kassir" %}</th>
                                     {% endif %}
                                     <th>{% trans "Məbləğ" %}</th>
                                     <th>{% trans "Vəd tarixi" %}</th>
@@ -43,7 +43,7 @@
                                     <td>{{ debt.customer.name }} {{ debt.customer.surname }}</td>
                                     <td>{{ debt.customer.place }}</td>
                                     {% if is_admin %}
-                                    <td><span class="badge bg-info">{{ debt.pharmacist.name }} {{ debt.pharmacist.surname }}</span></td>
+                                    <td><span class="badge bg-info">{{ debt.cashier.name }} {{ debt.cashier.surname }}</span></td>
                                     {% endif %}
                                     <td>
                                         <strong>₼{{ debt.remaining_amount|floatformat:2 }}</strong>

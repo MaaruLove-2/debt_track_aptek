@@ -1,14 +1,14 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Aptekçilər - Aptek Borc İzləyicisi" %}{% endblock %}
+{% block title %}{% trans "Kassirlər - Aptek Borc İzləyicisi" %}{% endblock %}
 
 {% block content %}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5><i class="bi bi-people"></i> {% trans "Aptekçilər" %}</h5>
-        <a href="{% url 'pharmacist_add' %}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> {% trans "Aptekçi əlavə et" %}
+        <h5><i class="bi bi-people"></i> {% trans "Kassirlər" %}</h5>
+        <a href="{% url 'cashier_add' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> {% trans "Kassir əlavə et" %}
         </a>
     </div>
     <div class="card-body">
@@ -26,29 +26,29 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for pharmacist in pharmacists %}
+                    {% for cashier in cashiers %}
                     <tr>
-                        <td>{{ pharmacist.name }} {{ pharmacist.surname }}</td>
-                        <td>{{ pharmacist.phone|default:"-" }}</td>
-                        <td>{{ pharmacist.email|default:"-" }}</td>
-                        <td><span class="badge bg-info">{{ pharmacist.unpaid_debt_count }}</span></td>
-                        <td>₼{{ pharmacist.total_debt|floatformat:2 }}</td>
+                        <td>{{ cashier.name }} {{ cashier.surname }}</td>
+                        <td>{{ cashier.phone|default:"-" }}</td>
+                        <td>{{ cashier.email|default:"-" }}</td>
+                        <td><span class="badge bg-info">{{ cashier.unpaid_debt_count }}</span></td>
+                        <td>₼{{ cashier.total_debt|floatformat:2 }}</td>
                         <td>
-                            {% if pharmacist.overdue_debt_count > 0 %}
-                                <span class="badge bg-danger">{{ pharmacist.overdue_debt_count }}</span>
+                            {% if cashier.overdue_debt_count > 0 %}
+                                <span class="badge bg-danger">{{ cashier.overdue_debt_count }}</span>
                             {% else %}
                                 <span class="badge bg-success">0</span>
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'pharmacist_detail' pharmacist.pk %}" class="btn btn-sm btn-primary">
+                            <a href="{% url 'cashier_detail' cashier.pk %}" class="btn btn-sm btn-primary">
                                 <i class="bi bi-eye"></i> {% trans "Bax" %}
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted">{% trans "Hələ aptekçi yoxdur." %} <a href="{% url 'pharmacist_add' %}">{% trans "Birini əlavə et" %}</a></td>
+                        <td colspan="7" class="text-center text-muted">{% trans "Hələ kassir yoxdur." %} <a href="{% url 'cashier_add' %}">{% trans "Birini əlavə et" %}</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
