@@ -141,3 +141,4 @@ Switching from SQLite to PostgreSQL is **easy**:
 **For 6 computers in a pharmacy, SQLite3 is usually sufficient!** 🎉
 
 
+

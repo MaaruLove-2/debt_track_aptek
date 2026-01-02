@@ -18,6 +18,7 @@ urlpatterns = [
     path('pharmacists/<int:pk>/change-password/', views.pharmacist_change_password, name='pharmacist_change_password'),
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/add/', views.customer_add, name='customer_add'),
+    path('customers/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
     path('customers/import/', views.customer_import, name='customer_import'),
     path('api/customers/search/', views.customer_search_api, name='customer_search_api'),
     path('reminders/', views.reminders, name='reminders'),

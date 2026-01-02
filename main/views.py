@@ -16,11 +16,10 @@ from .utils import parse_csv_file, parse_excel_file, import_customers_from_data
 
 def login_view(request):
     """Login page for pharmacists and admins"""
+    # Always logout user when accessing login page to ensure fresh login
     if request.user.is_authenticated:
-        # Redirect based on user type
-        if request.user.is_staff or request.user.is_superuser:
-            return redirect('admin_dashboard')
-        return redirect('home')
+        auth_logout(request)
+        messages.info(request, _('Çıxış edildi. Zəhmət olmasa yenidən daxil olun.'))
     
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -650,6 +649,45 @@ def customer_add(request):
         form = CustomerForm()
     
     return render(request, 'main/customer_add.html', {'form': form})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff or u.is_superuser)
+def customer_edit(request, pk):
+    """Edit an existing customer (admin only)"""
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    if request.method == 'POST':
+        form = CustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            try:
+                # Check if the updated customer would conflict with another customer
+                # (unique constraint on name, surname, patronymic, place)
+                updated_name = form.cleaned_data['name']
+                updated_surname = form.cleaned_data['surname']
+                updated_patronymic = form.cleaned_data.get('patronymic') or None
+                updated_place = form.cleaned_data['place']
+                
+                # Check if another customer with same combination exists (excluding current)
+                existing = Customer.objects.filter(
+                    name=updated_name,
+                    surname=updated_surname,
+                    patronymic=updated_patronymic,
+                    place=updated_place
+                ).exclude(pk=customer.pk).first()
+                
+                if existing:
+                    messages.error(request, _('Bu kombinasiya ilə başqa müştəri artıq mövcuddur: {customer}').format(customer=existing))
+                else:
+                    form.save()
+                    messages.success(request, _('Müştəri məlumatları uğurla yeniləndi!'))
+                    return redirect('customer_list')
+            except Exception as e:
+                messages.error(request, _('Xəta: {error}').format(error=str(e)))
+    else:
+        form = CustomerForm(instance=customer)
+    
+    return render(request, 'main/customer_edit.html', {'form': form, 'customer': customer})
 
 
 @login_required

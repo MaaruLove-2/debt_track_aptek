@@ -100,3 +100,4 @@ Django admin panelindən:
 - Mövcud aptekçilər üçün istifadəçi hesabları yaratmaq lazımdır (yuxarıdakı skriptə baxın)
 
 
+

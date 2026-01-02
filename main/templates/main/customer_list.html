@@ -38,6 +38,9 @@
                         <th>{% trans "Yer" %}</th>
                         <th>{% trans "Telefon" %}</th>
                         <th>{% trans "Ünvan" %}</th>
+                        {% if user.is_staff or user.is_superuser %}
+                        <th>{% trans "Əməliyyatlar" %}</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -49,10 +52,17 @@
                         <td>{{ customer.place }}</td>
                         <td>{{ customer.phone|default:"-" }}</td>
                         <td>{{ customer.address|default:"-"|truncatewords:10 }}</td>
+                        {% if user.is_staff or user.is_superuser %}
+                        <td>
+                            <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil-square"></i> {% trans "Redaktə" %}
+                            </a>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted">{% trans "Müştəri tapılmadı." %} <a href="{% url 'customer_add' %}">{% trans "Birini əlavə et" %}</a></td>
+                        <td colspan="{% if user.is_staff or user.is_superuser %}7{% else %}6{% endif %}" class="text-center text-muted">{% trans "Müştəri tapılmadı." %} <a href="{% url 'customer_add' %}">{% trans "Birini əlavə et" %}</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>

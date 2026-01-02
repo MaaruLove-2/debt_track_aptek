@@ -129,3 +129,4 @@ To make an existing user an admin:
 - All admin actions are protected by `@login_required` and `@user_passes_test(is_admin)` decorators
 
 
+
