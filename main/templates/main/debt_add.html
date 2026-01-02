@@ -131,6 +131,15 @@
         text-transform: uppercase;
         font-size: 0.9rem;
     }
+    /* Hint for keyboard shortcut */
+    @media (min-width: 768px) {
+        button[type="submit"]::after {
+            content: " (Ctrl+Enter)";
+            font-size: 0.85rem;
+            opacity: 0.7;
+            font-weight: normal;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -236,8 +245,9 @@
                         <a href="{% url 'debt_list' %}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> {% trans "Ləğv et" %}
                         </a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" title="{% trans 'Ctrl+Enter ilə göndərin' %}">
                             <i class="bi bi-check-circle-fill"></i> {% trans "Borc əlavə et" %}
+                            <small class="d-block d-md-none mt-1" style="font-size: 0.7rem; opacity: 0.8;">{% trans "Ctrl+Enter" %}</small>
                         </button>
                     </div>
                 </form>
@@ -255,9 +265,77 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchResults = document.getElementById('searchResults');
     const customerResults = document.getElementById('customerResults');
     const customerIdInput = document.getElementById('customer_id');
+    const debtForm = document.getElementById('debtForm');
     
     let searchTimeout;
     let selectedCustomerId = null;
+    
+    // Handle Enter key: move to next field, Ctrl+Enter submits form
+    const formInputs = Array.from(debtForm.querySelectorAll('input, textarea, select')).filter(
+        input => input.type !== 'hidden' && input.id !== 'customer_id'
+    );
+    
+    formInputs.forEach((input, index) => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                // If Ctrl+Enter, submit the form
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    debtForm.requestSubmit();
+                    return false;
+                }
+                
+                // For textarea, allow Enter for new lines
+                if (input.tagName === 'TEXTAREA') {
+                    return; // Allow default behavior for textarea
+                }
+                
+                // For customer input, if dropdown is visible, don't prevent default
+                if (input.id === 'customerInput' && searchResults.style.display === 'block') {
+                    // Let the dropdown handle Enter for selection
+                    return;
+                }
+                
+                // For other inputs, prevent default and move to next field
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Find next input field
+                let nextIndex = index + 1;
+                while (nextIndex < formInputs.length) {
+                    const nextInput = formInputs[nextIndex];
+                    // Skip hidden and disabled inputs
+                    if (nextInput.type !== 'hidden' && !nextInput.disabled && nextInput.offsetParent !== null) {
+                        nextInput.focus();
+                        // If it's a select, open the dropdown
+                        if (nextInput.tagName === 'SELECT') {
+                            setTimeout(() => nextInput.click(), 10);
+                        }
+                        return false;
+                    }
+                    nextIndex++;
+                }
+                
+                // If no next field found, don't submit - user must use Ctrl+Enter
+                return false;
+            }
+        });
+    });
+    
+    // Prevent form submission on Enter key (only allow Ctrl+Enter or button click)
+    debtForm.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+            // If Enter is pressed on submit button, allow it
+            if (e.target && (e.target.type === 'submit' || e.target.closest('button[type="submit"]'))) {
+                return;
+            }
+            // Otherwise, prevent default (handled by individual input handlers above)
+            if (e.target && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+            }
+        }
+    });
     
     // Show preview when input is focused
     customerInput.addEventListener('focus', function() {

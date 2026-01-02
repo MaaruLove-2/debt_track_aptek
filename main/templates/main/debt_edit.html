@@ -29,7 +29,9 @@
                                 <div class="text-danger">{{ form.amount.errors }}</div>
                             {% endif %}
                             {% if form.amount.help_text %}
-                                <small class="form-text text-muted">{{ form.amount.help_text }}</small>
+                                <div class="alert alert-warning mt-2">
+                                    <small>{{ form.amount.help_text }}</small>
+                                </div>
                             {% endif %}
                         </div>
                     </div>

@@ -110,7 +110,7 @@
                     <div class="alert alert-primary">
                         <h6 class="mb-2"><i class="bi bi-info-circle"></i> {% trans "Bu müştərinin digər borcları" %}</h6>
                         <p class="mb-2"><strong>{% trans "Ümumi borc sayı" %}:</strong> {{ customer_debts.count }}</p>
-                        <p class="mb-2"><strong>{% trans "Ümumi məbləğ" %}:</strong> ₼{{ total_amount|floatformat:2 }}</p>
+                        <p class="mb-2"><strong>{% trans "Ümumi ilkin məbləğ" %}:</strong> ₼{{ total_amount|floatformat:2 }}</p>
                         <p class="mb-2"><strong>{% trans "Ümumi ödənilmiş" %}:</strong> ₼{{ total_paid|floatformat:2 }}</p>
                         <p class="mb-0"><strong>{% trans "Ümumi qalan məbləğ" %}:</strong> <span class="text-primary fs-5">₼{{ total_remaining|floatformat:2 }}</span></p>
                     </div>
@@ -179,11 +179,6 @@
                     <a href="{% url 'debt_mark_paid' debt.pk %}" class="btn btn-success">
                         <i class="bi bi-check-circle"></i> {% trans "Tam ödənildi" %}
                     </a>
-                    {% if has_multiple_debts %}
-                    <a href="{% url 'debt_pay_all_customer' debt.pk %}" class="btn btn-success btn-lg">
-                        <i class="bi bi-check-all"></i> {% trans "Bütün borcların ödənişi" %} (₼{{ total_remaining|floatformat:2 }})
-                    </a>
-                    {% endif %}
                     {% endif %}
                     <a href="{% url 'debt_list' %}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> {% trans "Siyahıya qayıt" %}

@@ -24,8 +24,9 @@ class Pharmacist(models.Model):
 
     @property
     def total_debt(self):
-        """Calculate total debt for this pharmacist"""
-        return sum(debt.amount for debt in self.debts.filter(is_paid=False))
+        """Calculate total remaining debt for this pharmacist"""
+        unpaid_debts = self.debts.filter(is_paid=False).prefetch_related('payments')
+        return sum(debt.remaining_amount for debt in unpaid_debts)
 
     @property
     def overdue_debt_count(self):

@@ -192,10 +192,30 @@ class DebtEditForm(forms.ModelForm):
         # Set widget attributes
         if 'amount' in self.fields:
             self.fields['amount'].widget.attrs.update({'class': 'form-control'})
+            # Add warning if there are payments
+            if self.instance and self.instance.pk:
+                paid_amount = self.instance.paid_amount
+                if paid_amount > 0:
+                    self.fields['amount'].help_text = _('XƏBƏRDARLIQ: Bu borcda artıq {paid}₼ ödəniş var. Məbləği dəyişdikdə qalan məbləğ yenidən hesablanacaq. Hazırkı məbləğ: {current}₼, Ödənilmiş: {paid}₼, Qalan: {remaining}₼').format(
+                        paid=paid_amount,
+                        current=self.instance.amount,
+                        remaining=self.instance.remaining_amount
+                    )
         if 'paid_date' in self.fields:
             self.fields['paid_date'].widget.attrs.update({'class': 'form-control', 'type': 'datetime-local'})
         if 'date_given' in self.fields:
             self.fields['date_given'].widget.attrs.update({'class': 'form-control', 'type': 'datetime-local'})
+    
+    def clean_amount(self):
+        """Validate amount - ensure it's not less than paid amount"""
+        amount = self.cleaned_data.get('amount')
+        if self.instance and self.instance.pk:
+            paid_amount = self.instance.paid_amount
+            if amount and paid_amount > 0 and amount < paid_amount:
+                raise forms.ValidationError(
+                    _('Məbləğ ödənilmiş məbləğdən ({paid}₼) az ola bilməz.').format(paid=paid_amount)
+                )
+        return amount
     
     def clean_date_given(self):
         """Convert naive datetime from datetime-local input to timezone-aware datetime"""

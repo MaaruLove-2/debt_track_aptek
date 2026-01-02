@@ -118,22 +118,24 @@ def home(request):
     monthly_balance = monthly_given - monthly_returned
     
     # Get statistics for current pharmacist only
-    total_debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).count()
-    total_amount = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).aggregate(
-        total=Sum('amount')
-    )['total'] or 0
+    # Prefetch payments to calculate remaining_amount correctly
+    unpaid_debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).select_related('customer').prefetch_related('payments')
+    unpaid_debts_list = list(unpaid_debts)  # Evaluate queryset once
+    total_debts = len(unpaid_debts_list)
     
-    overdue_debts = Debt.objects.filter(
+    # Calculate total remaining amount (not total amount)
+    total_amount = sum(debt.remaining_amount for debt in unpaid_debts_list)
+    
+    overdue_debts_qs = Debt.objects.filter(
         pharmacist=pharmacist,
         is_paid=False,
         promise_date__lt=today
-    ).count()
+    ).select_related('customer').prefetch_related('payments')
+    overdue_debts_list = list(overdue_debts_qs)  # Evaluate queryset once
+    overdue_count = len(overdue_debts_list)
     
-    overdue_amount = Debt.objects.filter(
-        pharmacist=pharmacist,
-        is_paid=False,
-        promise_date__lt=today
-    ).aggregate(total=Sum('amount'))['total'] or 0
+    # Calculate overdue remaining amount (not total amount)
+    overdue_amount = sum(debt.remaining_amount for debt in overdue_debts_list)
     
     # Recent debts for current pharmacist
     recent_debts = Debt.objects.filter(pharmacist=pharmacist, is_paid=False).order_by('-date_given')[:10]
@@ -149,7 +151,7 @@ def home(request):
         'pharmacist': pharmacist,
         'total_debts': total_debts,
         'total_amount': total_amount,
-        'overdue_debts': overdue_debts,
+        'overdue_debts': overdue_count,
         'overdue_amount': overdue_amount,
         'recent_debts': recent_debts,
         'overdue_debts_list': overdue_debts_list,
@@ -1072,28 +1074,35 @@ def admin_dashboard(request):
     pharmacists = Pharmacist.objects.all().select_related('user')
     
     # Get statistics for all pharmacists
-    total_debts = Debt.objects.filter(is_paid=False).count()
-    total_amount = Debt.objects.filter(is_paid=False).aggregate(
-        total=Sum('amount')
-    )['total'] or 0
+    # Prefetch payments to calculate remaining_amount correctly
+    unpaid_debts = Debt.objects.filter(is_paid=False).select_related('customer', 'pharmacist').prefetch_related('payments')
+    unpaid_debts_list = list(unpaid_debts)  # Evaluate queryset once
+    total_debts = len(unpaid_debts_list)
     
-    overdue_debts = Debt.objects.filter(
+    # Calculate total remaining amount (not total amount)
+    total_amount = sum(debt.remaining_amount for debt in unpaid_debts_list)
+    
+    overdue_debts_qs = Debt.objects.filter(
         is_paid=False,
         promise_date__lt=today
-    ).count()
+    ).select_related('customer', 'pharmacist').prefetch_related('payments')
+    overdue_debts_list = list(overdue_debts_qs)  # Evaluate queryset once
+    overdue_debts_count = len(overdue_debts_list)
     
-    overdue_amount = Debt.objects.filter(
-        is_paid=False,
-        promise_date__lt=today
-    ).aggregate(total=Sum('amount'))['total'] or 0
+    # Calculate overdue remaining amount (not total amount)
+    overdue_amount = sum(debt.remaining_amount for debt in overdue_debts_list)
     
     # Get pharmacist statistics
     pharmacist_stats = []
     for pharmacist in pharmacists:
+        # Prefetch debts and payments for accurate remaining_amount calculation
+        unpaid_debts = pharmacist.debts.filter(is_paid=False).prefetch_related('payments')
+        total_remaining = sum(debt.remaining_amount for debt in unpaid_debts)
+        
         stats = {
             'pharmacist': pharmacist,
-            'total_debt': pharmacist.total_debt,
-            'debt_count': pharmacist.debts.filter(is_paid=False).count(),
+            'total_debt': total_remaining,  # Use calculated remaining amount
+            'debt_count': unpaid_debts.count(),
             'overdue_count': pharmacist.overdue_debt_count,
             'has_user': pharmacist.user is not None,
         }
@@ -1111,7 +1120,7 @@ def admin_dashboard(request):
     context = {
         'total_debts': total_debts,
         'total_amount': total_amount,
-        'overdue_debts': overdue_debts,
+        'overdue_debts': overdue_debts_count,
         'overdue_amount': overdue_amount,
         'pharmacist_stats': pharmacist_stats,
         'recent_debts': recent_debts,
