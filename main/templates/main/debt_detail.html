@@ -103,6 +103,65 @@
                     </div>
                 </div>
                 {% endif %}
+                
+                {% if has_multiple_debts %}
+                <hr>
+                <div class="mb-4">
+                    <div class="alert alert-primary">
+                        <h6 class="mb-2"><i class="bi bi-info-circle"></i> {% trans "Bu müştərinin digər borcları" %}</h6>
+                        <p class="mb-2"><strong>{% trans "Ümumi borc sayı" %}:</strong> {{ customer_debts.count }}</p>
+                        <p class="mb-2"><strong>{% trans "Ümumi məbləğ" %}:</strong> ₼{{ total_amount|floatformat:2 }}</p>
+                        <p class="mb-2"><strong>{% trans "Ümumi ödənilmiş" %}:</strong> ₼{{ total_paid|floatformat:2 }}</p>
+                        <p class="mb-0"><strong>{% trans "Ümumi qalan məbləğ" %}:</strong> <span class="text-primary fs-5">₼{{ total_remaining|floatformat:2 }}</span></p>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Tarix" %}</th>
+                                    {% if is_admin %}
+                                    <th>{% trans "Aptekçi" %}</th>
+                                    {% endif %}
+                                    <th>{% trans "Məbləğ" %}</th>
+                                    <th>{% trans "Ödənilmiş" %}</th>
+                                    <th>{% trans "Qalan" %}</th>
+                                    <th>{% trans "Status" %}</th>
+                                    <th>{% trans "Əməliyyatlar" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in customer_debts %}
+                                <tr {% if d.pk == debt.pk %}class="table-info"{% endif %}>
+                                    <td>{% timezone "Asia/Baku" %}{{ d.date_given|date:"d.m.Y H:i" }}{% endtimezone %}</td>
+                                    {% if is_admin %}
+                                    <td>{{ d.pharmacist }}</td>
+                                    {% endif %}
+                                    <td>₼{{ d.amount|floatformat:2 }}</td>
+                                    <td>₼{{ d.paid_amount|floatformat:2 }}</td>
+                                    <td><strong>₼{{ d.remaining_amount|floatformat:2 }}</strong></td>
+                                    <td>
+                                        {% if d.is_paid %}
+                                            <span class="badge bg-success">{% trans "Ödənilib" %}</span>
+                                        {% elif d.is_overdue %}
+                                            <span class="badge bg-danger">{% trans "Vaxtı keçmiş" %}</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{% trans "Gözləyir" %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'debt_detail' d.pk %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <hr>
                 <div class="d-flex gap-2">
                     {% if user.is_staff or user.is_superuser %}
@@ -120,6 +179,11 @@
                     <a href="{% url 'debt_mark_paid' debt.pk %}" class="btn btn-success">
                         <i class="bi bi-check-circle"></i> {% trans "Tam ödənildi" %}
                     </a>
+                    {% if has_multiple_debts %}
+                    <a href="{% url 'debt_pay_all_customer' debt.pk %}" class="btn btn-success btn-lg">
+                        <i class="bi bi-check-all"></i> {% trans "Bütün borcların ödənişi" %} (₼{{ total_remaining|floatformat:2 }})
+                    </a>
+                    {% endif %}
                     {% endif %}
                     <a href="{% url 'debt_list' %}" class="btn btn-secondary">
                         <i class="bi bi-arrow-left"></i> {% trans "Siyahıya qayıt" %}

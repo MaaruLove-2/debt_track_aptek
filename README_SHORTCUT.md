@@ -40,3 +40,4 @@ If the shortcut doesn't work:
 3. Try running `start_server.bat` directly to see any error messages
 4. Check that the Django server can start manually: `python manage.py runserver`
 
+

@@ -163,60 +163,35 @@
                     <!-- Customer Selection Section -->
                     <div class="card section-card customer-section">
                         <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-person-fill"></i> {% trans "Müştəri seçimi" %}</h6>
+                            <h6 class="mb-0"><i class="bi bi-person-fill"></i> {% trans "Müştəri" %}</h6>
                         </div>
                         <div class="card-body">
-                            <!-- Search Existing Customer -->
-                            <div class="mb-3" >
-                                <label class="form-label" for="customerSearch" style="cursor: pointer;">{% trans "Mövcud müştəri axtar" %}</label>
-                                <div class="input-group">
-                                    <input type="text" 
-                                           class="form-control" 
-                                           id="customerSearch" 
-                                           placeholder="{% trans 'Müştəri adı, soyadı, yer və ya telefon...' %}"
-                                           autocomplete="off">
-                                    <button type="button" class="btn btn-outline-secondary" id="searchBtn">
-                                        <i class="bi bi-search"></i> {% trans "Axtar" %}
-                                    </button>
-                                </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="customerInput">{% trans "Müştəri adı" %} <span class="text-muted">({% trans "Məs: Əli Məmmədov Bakı" %})</span></label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="customerInput" 
+                                       name="customer_input"
+                                       placeholder="{% trans 'Müştəri adı, soyadı və ya yer yazın...' %}"
+                                       autocomplete="off"
+                                       required>
+                                <small class="form-text text-muted">{% trans "Mövcud müştəri seçin və ya yenisini yaradın" %}</small>
                                 <div id="searchResults" class="mt-2" style="display: none;">
                                     <div class="list-group" id="customerResults"></div>
                                 </div>
-                                <div id="selectedCustomer" class="mt-2" style="display: none;">
-                                    <div class="alert alert-success">
-                                        <strong>{% trans "Seçilmiş müştəri" %}:</strong> <span id="selectedCustomerName"></span>
-                                        <button type="button" class="btn btn-sm btn-outline-danger float-end" id="clearSelection">
-                                            <i class="bi bi-x"></i> {% trans "Təmizlə" %}
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                             
-                            <div class="text-center my-3">
-                                <span class="divider-text">━━━ {% trans "VƏ YA" %} ━━━</span>
-                            </div>
-                            
-                            <!-- Create New Customer (Simplified) -->
-                            <div class="mb-3">
-                                <label class="form-label">{% trans "Yeni müştəri əlavə et" %}</label>
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        </label>
-                                        {{ simplified_form.full_name }}
-                                        <small class="form-text text-muted">{% trans "Məs: Əli Məmmədov Bakı" %}</small>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label for="{{ simplified_form.phone.id_for_label }}" class="form-label">{% trans "Telefon" %} <span class="text-danger">*</span></label>
-                                        {{ simplified_form.phone }}
-                                        {% if simplified_form.phone.errors %}
-                                            <div class="text-danger">{{ simplified_form.phone.errors }}</div>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                            <div class="mb-3" id="phoneFieldContainer" style="display: none;">
+                                <label class="form-label" for="phoneInput">{% trans "Telefon" %} <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="phoneInput" 
+                                       name="phone"
+                                       placeholder="+994501234567">
+                                <small class="form-text text-muted">{% trans "Yeni müştəri üçün telefon nömrəsi mütləqdir" %}</small>
                             </div>
                             
                             <input type="hidden" name="customer_id" id="customer_id" value="">
-                            <input type="hidden" name="create_new_customer" id="create_new_customer" value="false">
                         </div>
                     </div>
                     
@@ -274,50 +249,64 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('customerSearch');
-    const searchBtn = document.getElementById('searchBtn');
+    const customerInput = document.getElementById('customerInput');
+    const phoneInput = document.getElementById('phoneInput');
+    const phoneFieldContainer = document.getElementById('phoneFieldContainer');
     const searchResults = document.getElementById('searchResults');
     const customerResults = document.getElementById('customerResults');
-    const selectedCustomer = document.getElementById('selectedCustomer');
-    const selectedCustomerName = document.getElementById('selectedCustomerName');
     const customerIdInput = document.getElementById('customer_id');
-    const createNewCustomerInput = document.getElementById('create_new_customer');
-    const clearSelectionBtn = document.getElementById('clearSelection');
-    const fullNameInput = document.querySelector('input[name="full_name"]');
-    const phoneInput = document.querySelector('input[name="phone"]');
     
     let searchTimeout;
+    let selectedCustomerId = null;
     
-    // Show preview when label is clicked
-    const searchLabel = document.querySelector('label[for="customerSearch"]');
-    if (searchLabel) {
-        searchLabel.addEventListener('click', function() {
-            searchInput.focus();
-        });
-    }
-    
-    // Show preview when input is focused or clicked
-    searchInput.addEventListener('focus', function() {
+    // Show preview when input is focused
+    customerInput.addEventListener('focus', function() {
         const query = this.value.trim();
         if (query.length === 0) {
-            // Show preview of all customers when field is empty and focused
-            performSearch('', true); // Pass true to indicate preview mode
+            performSearch('', true);
+            phoneFieldContainer.style.display = 'none';
+            phoneInput.removeAttribute('required');
         } else if (query.length >= 2) {
             performSearch(query);
+            // Show phone field if no customer is selected
+            if (!selectedCustomerId) {
+                phoneFieldContainer.style.display = 'block';
+                phoneInput.setAttribute('required', 'required');
+            }
+        } else if (query.length > 0) {
+            // User has typed something but less than 2 characters
+            if (!selectedCustomerId) {
+                phoneFieldContainer.style.display = 'block';
+                phoneInput.setAttribute('required', 'required');
+            }
         }
     });
     
     // Search as user types
-    searchInput.addEventListener('input', function() {
+    customerInput.addEventListener('input', function() {
         clearTimeout(searchTimeout);
         const query = this.value.trim();
+        
+        // Clear selection if user is typing
+        if (query.length > 0 && selectedCustomerId) {
+            selectedCustomerId = null;
+            customerIdInput.value = '';
+        }
+        
+        // Show phone field when user starts typing (potential new customer)
+        if (query.length > 0 && !selectedCustomerId) {
+            phoneFieldContainer.style.display = 'block';
+            phoneInput.setAttribute('required', 'required');
+        } else if (query.length === 0) {
+            phoneFieldContainer.style.display = 'none';
+            phoneInput.removeAttribute('required');
+        }
         
         if (query.length >= 2) {
             searchTimeout = setTimeout(() => {
                 performSearch(query);
             }, 300);
         } else if (query.length === 0) {
-            // Show preview when input is cleared
             performSearch('', true);
         } else {
             searchResults.style.display = 'none';
@@ -325,11 +314,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Search button click
-    searchBtn.addEventListener('click', function() {
-        const query = searchInput.value.trim();
-        if (query.length >= 2) {
-            performSearch(query);
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!customerInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
         }
     });
     
@@ -344,7 +332,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 customerResults.innerHTML = '';
                 if (data.customers && data.customers.length > 0) {
-                    // Limit preview to 10 customers if it's a preview
                     const customersToShow = isPreview && !query ? data.customers.slice(0, 10) : data.customers;
                     
                     customersToShow.forEach(customer => {
@@ -375,8 +362,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     searchResults.style.display = 'block';
                 } else {
-                    customerResults.innerHTML = '<div class="list-group-item text-muted">{% trans "Müştəri tapılmadı" %}</div>';
-                    searchResults.style.display = 'block';
+                    if (query.length >= 2) {
+                        customerResults.innerHTML = '<div class="list-group-item text-muted">{% trans "Müştəri tapılmadı - yeni müştəri yaradılacaq" %}</div>';
+                        searchResults.style.display = 'block';
+                        // Show phone field when no customer found
+                        if (!selectedCustomerId) {
+                            phoneFieldContainer.style.display = 'block';
+                            phoneInput.setAttribute('required', 'required');
+                        }
+                    } else {
+                        searchResults.style.display = 'none';
+                    }
                 }
             })
             .catch(error => {
@@ -384,78 +380,62 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Select customer
+    // Select customer from dropdown
     function selectCustomer(customer) {
+        selectedCustomerId = customer.id;
         customerIdInput.value = customer.id;
-        createNewCustomerInput.value = 'false';
-        selectedCustomerName.textContent = customer.display;
-        selectedCustomer.style.display = 'block';
+        customerInput.value = customer.display;
         searchResults.style.display = 'none';
-        searchInput.value = '';
-        
-        // Clear and disable new customer form
-        fullNameInput.value = '';
-        phoneInput.value = '';
-        fullNameInput.removeAttribute('required');
+        phoneFieldContainer.style.display = 'none';
+        phoneInput.value = customer.phone || '';
         phoneInput.removeAttribute('required');
-        fullNameInput.disabled = true;
-        phoneInput.disabled = true;
     }
     
-    // Clear selection
-    clearSelectionBtn.addEventListener('click', function() {
-        customerIdInput.value = '';
-        createNewCustomerInput.value = 'false';
-        selectedCustomer.style.display = 'none';
-        searchInput.value = '';
+    // Form submission - automatically create customer if not selected
+    document.getElementById('debtForm').addEventListener('submit', function(e) {
+        const customerId = customerIdInput.value;
+        const customerName = customerInput.value.trim();
+        const phone = phoneInput.value.trim();
         
-        // Re-enable new customer form
-        fullNameInput.disabled = false;
-        phoneInput.disabled = false;
-    });
-    
-    // When user starts typing in full_name, clear customer selection
-    fullNameInput.addEventListener('input', function() {
-        if (this.value.trim().length > 0) {
-            customerIdInput.value = '';
-            createNewCustomerInput.value = 'true';
-            selectedCustomer.style.display = 'none';
-            // Re-enable fields
-            fullNameInput.disabled = false;
-            phoneInput.disabled = false;
+        if (!customerName) {
+            e.preventDefault();
+            showError('{% trans "Zəhmət olmasa müştəri adını daxil edin" %}', customerInput);
+            return false;
+        }
+        
+        // If no customer selected, phone is required for new customer
+        if (!customerId && !phone) {
+            e.preventDefault();
+            phoneFieldContainer.style.display = 'block';
+            phoneInput.setAttribute('required', 'required');
+            showError('{% trans "Yeni müştəri üçün telefon nömrəsi mütləqdir" %}', phoneInput);
+            return false;
         }
     });
     
     // Function to show error message
     function showError(message, targetElement) {
-        // Remove existing error messages
         const existingErrors = document.querySelectorAll('.error-message');
         existingErrors.forEach(err => err.remove());
         
-        // Remove error styling from fields
         document.querySelectorAll('.field-error').forEach(field => {
             field.classList.remove('field-error');
         });
         
-        // Create error message element
         const errorDiv = document.createElement('div');
         errorDiv.className = 'error-message';
         errorDiv.textContent = message;
         
-        // Insert error message before the form
         const form = document.getElementById('debtForm');
         form.parentNode.insertBefore(errorDiv, form);
         
-        // Add error styling to target field
         if (targetElement) {
             targetElement.classList.add('field-error');
             targetElement.focus();
         }
         
-        // Scroll to error
         errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        // Auto-remove error after 5 seconds
         setTimeout(() => {
             errorDiv.remove();
             if (targetElement) {
@@ -463,34 +443,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 5000);
     }
-    
-    // Form submission validation
-    document.getElementById('debtForm').addEventListener('submit', function(e) {
-        const customerId = customerIdInput.value;
-        const fullName = fullNameInput.value.trim();
-        const phone = phoneInput.value.trim();
-        
-        if (!customerId && !fullName) {
-            e.preventDefault();
-            showError('{% trans "Zəhmət olmasa müştəri seçin və ya yenisini yaradın" %}', searchInput);
-            return false;
-        }
-        
-        if (customerId) {
-            // Existing customer selected - make sure new customer fields are not required
-            createNewCustomerInput.value = 'false';
-            fullNameInput.removeAttribute('required');
-            phoneInput.removeAttribute('required');
-        } else if (fullName) {
-            // Creating new customer - phone is required
-            createNewCustomerInput.value = 'true';
-            if (!phone) {
-                e.preventDefault();
-                showError('{% trans "Zəhmət olmasa telefon nömrəsini daxil edin" %}', phoneInput);
-                return false;
-            }
-        }
-    });
 });
 </script>
 {% endblock %}

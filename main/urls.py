@@ -12,6 +12,7 @@ urlpatterns = [
     path('debts/<int:pk>/delete/', views.debt_delete, name='debt_delete'),
     path('debts/<int:pk>/mark-paid/', views.debt_mark_paid, name='debt_mark_paid'),
     path('debts/<int:pk>/add-payment/', views.debt_add_payment, name='debt_add_payment'),
+    path('debts/<int:pk>/pay-all/', views.debt_pay_all_customer, name='debt_pay_all_customer'),
     path('pharmacists/', views.pharmacist_list, name='pharmacist_list'),
     path('pharmacists/add/', views.pharmacist_add, name='pharmacist_add'),
     path('pharmacists/<int:pk>/', views.pharmacist_detail, name='pharmacist_detail'),

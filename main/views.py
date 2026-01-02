@@ -226,32 +226,33 @@ def debt_add(request):
     if request.method == 'POST':
         form = DebtForm(request.POST, pharmacist=pharmacist)
         
-        # Check if creating new customer
-        create_new = request.POST.get('create_new_customer') == 'true'
         customer_id = request.POST.get('customer_id', '').strip()
-        full_name = request.POST.get('full_name', '').strip()
+        customer_input = request.POST.get('customer_input', '').strip()
+        phone = request.POST.get('phone', '').strip()
         
-        # If customer_id is provided, use existing customer (ignore create_new flag)
+        customer = None
+        
+        # If customer_id is provided, use existing customer
         if customer_id:
             try:
                 customer = Customer.objects.get(pk=customer_id)
-                debt = form.save(commit=False)
-                debt.pharmacist = pharmacist
-                debt.customer = customer
-                if form.is_valid():
-                    debt.save()
-                    messages.success(request, _('Borc uğurla əlavə edildi!'))
-                    return redirect('debt_list')
-                else:
-                    messages.error(request, _('Forma xəta var. Zəhmət olmasa yoxlayın.'))
             except Customer.DoesNotExist:
                 messages.error(request, _('Müştəri tapılmadı.'))
-            except Exception as e:
-                messages.error(request, _('Xəta: {error}').format(error=str(e)))
-        
-        elif create_new and full_name:
-            # Parse full_name: "Name Surname Place" or "Surname Name Place"
-            parts = full_name.split()
+                form = DebtForm(pharmacist=pharmacist)
+                return render(request, 'main/debt_add.html', {
+                    'form': form
+                })
+        elif customer_input:
+            # Validate phone is provided for new customers
+            if not phone:
+                messages.error(request, _('Yeni müştəri üçün telefon nömrəsi mütləqdir.'))
+                form = DebtForm(pharmacist=pharmacist)
+                return render(request, 'main/debt_add.html', {
+                    'form': form
+                })
+            
+            # Parse customer_input: "Name Surname Place" or "Surname Name Place"
+            parts = customer_input.split()
             if len(parts) >= 3:
                 # Last part is place
                 place = parts[-1]
@@ -267,69 +268,91 @@ def debt_add(request):
                 surname = ''
                 place = 'Unknown'
             
-            phone = request.POST.get('phone', '').strip()
-            
-            # Validate phone number is provided
-            if not phone:
-                messages.error(request, _('Zəhmət olmasa telefon nömrəsini daxil edin.'))
-                form = DebtForm(pharmacist=pharmacist)
-                simplified_form = SimplifiedCustomerForm()
-                return render(request, 'main/debt_add.html', {
-                    'form': form,
-                    'simplified_form': simplified_form
-                })
-            
-            # Create or get customer (ensure uniqueness)
-            # Use get_or_create with all unique fields
-            customer, created = Customer.objects.get_or_create(
+            # Try to find existing customer first
+            customer = Customer.objects.filter(
                 name=name,
                 surname=surname,
-                patronymic=None,
-                place=place,
-                defaults={'phone': phone}
-            )
+                place=place
+            ).first()
             
-            if created:
-                messages.success(request, _('Yeni müştəri yaradıldı: {customer}').format(customer=customer))
-            
-            # Create debt with this customer
-            try:
-                from datetime import datetime as dt
+            # If not found, create new customer
+            if not customer:
+                customer = Customer.objects.create(
+                    name=name,
+                    surname=surname,
+                    patronymic=None,
+                    place=place,
+                    phone=phone
+                )
+                messages.success(request, _('Yeni müştəri avtomatik yaradıldı: {customer}').format(customer=customer))
+            else:
+                # Update phone if provided and customer doesn't have one
+                if phone and not customer.phone:
+                    customer.phone = phone
+                    customer.save()
+        
+        if not customer:
+            messages.error(request, _('Zəhmət olmasa müştəri adını daxil edin.'))
+            form = DebtForm(pharmacist=pharmacist)
+            return render(request, 'main/debt_add.html', {
+                'form': form
+            })
+        
+        # Create debt with this customer
+        try:
+            # Use form's cleaned_data if available, otherwise parse from POST or use current time
+            date_given = None
+            if form.is_valid() and 'date_given' in form.cleaned_data:
+                date_given = form.cleaned_data['date_given']
+            else:
+                # Try to get from POST data
                 date_given_str = request.POST.get('date_given')
-                # Parse datetime from form (format: YYYY-MM-DDTHH:mm)
-                # The browser sends local time, so we need to make it timezone-aware
                 if date_given_str:
-                    naive_dt = dt.strptime(date_given_str, '%Y-%m-%dT%H:%M')
-                    # Make it timezone-aware by assuming it's in the local timezone (Asia/Baku)
-                    # timezone.make_aware uses the default timezone from settings (Asia/Baku)
-                    date_given = timezone.make_aware(naive_dt)
+                    from datetime import datetime as dt
+                    # Try to parse different date formats
+                    try:
+                        # Format: YYYY-MM-DDTHH:MM (datetime-local input)
+                        naive_dt = dt.strptime(date_given_str, '%Y-%m-%dT%H:%M')
+                        date_given = timezone.make_aware(naive_dt)
+                    except ValueError:
+                        try:
+                            # Format: YYYY-MM-DD HH:MM:SS.microseconds (already parsed datetime)
+                            naive_dt = dt.strptime(date_given_str, '%Y-%m-%d %H:%M:%S.%f')
+                            date_given = timezone.make_aware(naive_dt)
+                        except ValueError:
+                            try:
+                                # Format: YYYY-MM-DD HH:MM:SS (without microseconds)
+                                naive_dt = dt.strptime(date_given_str, '%Y-%m-%d %H:%M:%S')
+                                date_given = timezone.make_aware(naive_dt)
+                            except ValueError:
+                                # If all parsing fails, use current time
+                                date_given = timezone.now()
                 else:
                     date_given = timezone.now()
-                
-                debt = Debt(
-                    pharmacist=pharmacist,
-                    customer=customer,
-                    amount=request.POST.get('amount'),
-                    date_given=date_given,
-                    promise_date=request.POST.get('promise_date'),
-                    description=request.POST.get('description', '')
-                )
-                debt.full_clean()
-                debt.save()
-                messages.success(request, _('Borc uğurla əlavə edildi!'))
-                return redirect('debt_list')
-            except Exception as e:
-                messages.error(request, _('Xəta: {error}').format(error=str(e)))
-        else:
-            # No customer selected or created
-            messages.error(request, _('Zəhmət olmasa müştəri seçin və ya yenisini yaradın.'))
+            
+            # Ensure date_given is timezone-aware
+            if date_given and timezone.is_naive(date_given):
+                date_given = timezone.make_aware(date_given)
+            
+            debt = Debt(
+                pharmacist=pharmacist,
+                customer=customer,
+                amount=request.POST.get('amount'),
+                date_given=date_given,
+                promise_date=request.POST.get('promise_date'),
+                description=request.POST.get('description', '')
+            )
+            debt.full_clean()
+            debt.save()
+            messages.success(request, _('Borc uğurla əlavə edildi!'))
+            return redirect('debt_list')
+        except Exception as e:
+            messages.error(request, _('Xəta: {error}').format(error=str(e)))
     else:
         form = DebtForm(pharmacist=pharmacist)
-        simplified_form = SimplifiedCustomerForm()
     
     return render(request, 'main/debt_add.html', {
-        'form': form,
-        'simplified_form': simplified_form
+        'form': form
     })
 
 
@@ -352,10 +375,35 @@ def debt_detail(request, pk):
     # Get all payments for this debt
     payments = debt.payments.all().order_by('-payment_date')
     
+    # Get all debts for this customer (same pharmacist if not admin)
+    if is_admin:
+        customer_debts = Debt.objects.filter(
+            customer=debt.customer,
+            is_paid=False,
+            is_deleted=False
+        ).select_related('pharmacist', 'customer').order_by('-date_given')
+    else:
+        customer_debts = Debt.objects.filter(
+            customer=debt.customer,
+            pharmacist=pharmacist,
+            is_paid=False,
+            is_deleted=False
+        ).select_related('pharmacist', 'customer').order_by('-date_given')
+    
+    # Calculate totals
+    total_remaining = sum(d.remaining_amount for d in customer_debts)
+    total_amount = sum(d.amount for d in customer_debts)
+    total_paid = sum(d.paid_amount for d in customer_debts)
+    
     return render(request, 'main/debt_detail.html', {
         'debt': debt, 
         'is_admin': is_admin,
-        'payments': payments
+        'payments': payments,
+        'customer_debts': customer_debts,
+        'total_remaining': total_remaining,
+        'total_amount': total_amount,
+        'total_paid': total_paid,
+        'has_multiple_debts': customer_debts.count() > 1
     })
 
 
@@ -475,6 +523,96 @@ def debt_add_payment(request, pk):
         form = PaymentForm(debt=debt)
     
     return render(request, 'main/debt_add_payment.html', {'form': form, 'debt': debt})
+
+
+@login_required
+def debt_pay_all_customer(request, pk):
+    """Pay all debts for a customer"""
+    # Admin/staff can pay all debts for any customer
+    if request.user.is_staff or request.user.is_superuser:
+        debt = get_object_or_404(Debt.all_objects, pk=pk)
+        is_admin = True
+    else:
+        pharmacist = get_current_pharmacist(request)
+        if not pharmacist:
+            messages.error(request, _('Aptekçi profili tapılmadı.'))
+            auth_logout(request)
+            return redirect('login')
+        debt = get_object_or_404(Debt.all_objects, pk=pk, pharmacist=pharmacist)
+        is_admin = False
+    
+    if request.method == 'POST':
+        payment_method = request.POST.get('payment_method')
+        if not payment_method:
+            messages.error(request, _('Zəhmət olmasa ödəniş üsulunu seçin.'))
+            return redirect('debt_detail', pk=pk)
+        
+        # Get all unpaid debts for this customer
+        if is_admin:
+            customer_debts = Debt.objects.filter(
+                customer=debt.customer,
+                is_paid=False,
+                is_deleted=False
+            )
+        else:
+            customer_debts = Debt.objects.filter(
+                customer=debt.customer,
+                pharmacist=pharmacist,
+                is_paid=False,
+                is_deleted=False
+            )
+        
+        if not customer_debts.exists():
+            messages.info(request, _('Bu müştərinin ödənilməmiş borcu yoxdur.'))
+            return redirect('debt_detail', pk=pk)
+        
+        # Mark all debts as paid
+        count = 0
+        total_amount = 0
+        for d in customer_debts:
+            d.mark_as_paid(payment_method=payment_method)
+            count += 1
+            total_amount += d.remaining_amount
+        
+        # Get payment method display name
+        payment_methods = {
+            'cash': _('Nağd'),
+            'card': _('Kart'),
+            'posterminal': _('Posterminal')
+        }
+        payment_method_display = payment_methods.get(payment_method, payment_method)
+        
+        messages.success(request, _('{count} borc uğurla ödənildi! Ümumi məbləğ: {amount}₼. Ödəniş üsulu: {method}').format(
+            count=count,
+            amount=total_amount,
+            method=payment_method_display
+        ))
+        return redirect('debt_detail', pk=pk)
+    
+    # If GET request, show payment method selection form
+    # Get all unpaid debts for this customer to show total
+    if is_admin:
+        customer_debts = Debt.objects.filter(
+            customer=debt.customer,
+            is_paid=False,
+            is_deleted=False
+        )
+    else:
+        customer_debts = Debt.objects.filter(
+            customer=debt.customer,
+            pharmacist=pharmacist,
+            is_paid=False,
+            is_deleted=False
+        )
+    
+    total_remaining = sum(d.remaining_amount for d in customer_debts)
+    
+    return render(request, 'main/debt_pay_all.html', {
+        'debt': debt,
+        'customer_debts': customer_debts,
+        'total_remaining': total_remaining,
+        'count': customer_debts.count()
+    })
 
 
 @login_required
