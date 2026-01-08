@@ -1,1 +1,11 @@
 01/01/2026 23:00:44 - Server started with command: pythonw.exe manage.py runserver 0.0.0.0:8000
+03/01/2026 17:38:39 - Server started with command: pythonw.exe manage.py runserver 0.0.0.0:8000
+05.01.2026 1:11:40 - Server started with command: pythonw.exe manage.py runserver 0.0.0.0:8000
+05.01.2026 1:12:09 - Server started with command: pythonw.exe manage.py runserver 0.0.0.0:8000
+05.01.2026 1:50:43 - Server started with command: pythonw.exe manage.py runserver 0.0.0.0:8000
+05.01.2026 2:45:56 - Server started with command: pythonw.exe manage.py runserver 192.168.100.11:8000
+05.01.2026 2:45:57 - Server started with command: pythonw.exe manage.py runserver 192.168.100.11:8000
+05.01.2026 3:09:30 - Server started with command: pythonw.exe manage.py runserver 192.168.100.11:8000
+05.01.2026 3:09:44 - Server started with command: pythonw.exe manage.py runserver 192.168.100.11:8000
+05.01.2026 3:09:45 - Server started with command: pythonw.exe manage.py runserver 192.168.100.11:8000
+07.01.2026 0:26:11 - Server started with command: pythonw.exe manage.py runserver 192.168.100.11:8000

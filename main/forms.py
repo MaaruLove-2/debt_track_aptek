@@ -122,24 +122,12 @@ class DebtForm(forms.ModelForm):
             self.fields['customer'].required = False
             self.fields['customer'].widget = forms.HiddenInput()
         
-        # Hide date_given field - it will be set automatically to current time
+        # No longer hiding date_given or setting promise_date here as it is handled in JS/Frontend
+        # but we keep the initial value for date_given
         if 'date_given' in self.fields:
-            self.fields['date_given'].widget = forms.HiddenInput()
-            # Set to current time
-            from django.utils import timezone
-            now = timezone.now()
-            self.initial['date_given'] = now
-        
-        # Set promise_date default to end of current month
-        if 'promise_date' in self.fields and not self.initial.get('promise_date'):
-            from datetime import datetime
-            from calendar import monthrange
-            now = timezone.now()
-            # Get last day of current month
-            last_day = monthrange(now.year, now.month)[1]
-            # Create date for last day of current month
-            end_of_month = datetime(now.year, now.month, last_day).date()
-            self.initial['promise_date'] = end_of_month
+             from django.utils import timezone
+             now = timezone.now()
+             self.initial['date_given'] = now
     
     def clean_date_given(self):
         """Convert naive datetime from datetime-local input to timezone-aware datetime"""

@@ -14,6 +14,7 @@ from .forms import CashierForm, CustomerForm, DebtForm, DebtEditForm, CustomerIm
 from .utils import parse_csv_file, parse_excel_file, import_customers_from_data
 
 
+
 def login_view(request):
     """Login page for cashiers and admins"""
     # Always logout user when accessing login page to ensure fresh login

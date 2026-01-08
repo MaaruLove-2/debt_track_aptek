@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,7 +28,8 @@ DEBUG = True
 # ALLOWED_HOSTS: Add your server's IP address here
 # For development on local network, you can use '*' (less secure)
 # For production, specify exact IP addresses or domain names
-ALLOWED_HOSTS = ['*']  # Change to ['192.168.1.100', 'localhost'] for better security
+ALLOWED_HOSTS = ['192.168.100.11', '127.0.0.1'] 
+ # Change to ['192.168.1.100', 'localhost'] for better security
 
 
 # Application definition
@@ -55,11 +56,12 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'pharmacy.urls'
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR / 'main' / 'templates',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -71,7 +73,6 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'pharmacy.wsgi.application'
 
 
@@ -139,6 +140,7 @@ SESSION_COOKIE_AGE = 86400  # 24 hours (but expires on browser close due to abov
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

@@ -9,65 +9,84 @@
         background: #f8f9fa;
         padding: 1.5rem 0;
     }
+
     .debt-card {
         border: none;
         border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         background: white;
     }
+
     .debt-card .card-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border-radius: 10px 10px 0 0 !important;
         padding: 1rem;
     }
+
     .section-card {
         border: 2px solid #e0e0e0;
         border-radius: 8px;
         margin-bottom: 1.5rem;
         background: white;
     }
+
     .section-card.customer-section {
         border-color: #667eea;
     }
+
     .section-card.debt-section {
         border-color: #4facfe;
     }
+
     .section-card .card-header {
         padding: 0.75rem 1rem;
         font-size: 1rem;
         font-weight: 600;
     }
+
+    .form-text .text-muted {
+        font-size: 0.8rem;
+    }
+
     .section-card.customer-section .card-header {
         background: linear-gradient(135deg, #667eea 0%, #9b7dd4 100%);
         color: white;
         border-radius: 6px 6px 0 0;
     }
+
     .section-card.debt-section .card-header {
         background: linear-gradient(135deg, #4facfe 0%, #00c9ff 100%);
         color: white;
         border-radius: 6px 6px 0 0;
     }
+
     .section-card .card-body {
         padding: 1.5rem;
     }
+
     .form-label {
         font-weight: 600;
         color: #333;
         margin-bottom: 0.5rem;
     }
+
     .form-control {
         border: 1px solid #ddd;
         border-radius: 5px;
     }
+
     .form-control:focus {
         border-color: #667eea;
         box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
     }
+
+
     .btn-primary {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
     }
+
     .list-group-item {
         border-radius: 5px;
         margin-bottom: 0.5rem;
@@ -76,12 +95,15 @@
         background-color: #ffffff;
         transition: all 0.2s ease;
     }
+
     .list-group-item:hover {
         background-color: #e0e7ff;
         border-color: #667eea;
         transform: translateX(3px);
         box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
     }
+
+
     #searchResults {
         background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
         border: 2px solid #667eea;
@@ -90,10 +112,12 @@
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
         margin-top: 8px;
     }
+
     #customerResults {
         max-height: 400px;
         overflow-y: auto;
     }
+
     .error-message {
         background-color: #fee;
         border: 2px solid #f00;
@@ -108,29 +132,45 @@
         box-shadow: 0 2px 8px rgba(255, 0, 0, 0.2);
         animation: shake 0.5s;
     }
+
     .error-message::before {
         content: "⚠️";
         font-size: 1.5rem;
     }
+
     @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        25% {
+            transform: translateX(-5px);
+        }
+
+        75% {
+            transform: translateX(5px);
+        }
     }
+
     .field-error {
         border: 2px solid #dc3545 !important;
         background-color: #fff5f5 !important;
     }
+
     .field-error:focus {
         border-color: #dc3545 !important;
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
     }
+
     .divider-text {
         color: #667eea;
         font-weight: 600;
         text-transform: uppercase;
         font-size: 0.9rem;
     }
+
     /* Hint for keyboard shortcut */
     @media (min-width: 768px) {
         button[type="submit"]::after {
@@ -152,105 +192,99 @@
                     <h4 class="mb-0"><i class="bi bi-plus-circle-fill"></i> {% trans "Yeni borc əlavə et" %}</h4>
                 </div>
                 <div class="card-body">
-                {% if messages %}
+                    {% if messages %}
                     {% for message in messages %}
-                        {% if message.tags == 'error' %}
-                        <div class="error-message">
-                            {{ message }}
-                        </div>
-                        {% else %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                        {% endif %}
+                    {% if message.tags == 'error' %}
+                    <div class="error-message">
+                        {{ message }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    {% endif %}
                     {% endfor %}
-                {% endif %}
-                <form method="post" id="debtForm">
-                    {% csrf_token %}
-                    
-                    <!-- Customer Selection Section -->
-                    <div class="card section-card customer-section">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-person-fill"></i> {% trans "Müştəri" %}</h6>
-                        </div>
+                    {% endif %}
+                    <form method="post" id="debtForm">
+                        {% csrf_token %}
+
+                        <!-- Customer Selection Section -->
+
                         <div class="card-body">
                             <div class="mb-3">
-                                <label class="form-label" for="customerInput">{% trans "Müştəri adı" %} <span class="text-muted">({% trans "Məs: Əli Məmmədov Bakı" %})</span></label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="customerInput" 
-                                       name="customer_input"
-                                       placeholder="{% trans 'Müştəri adı, soyadı və ya yer yazın...' %}"
-                                       autocomplete="off"
-                                       required>
-                                <small class="form-text text-muted">{% trans "Mövcud müştəri seçin və ya yenisini yaradın" %}</small>
+                                <label class="form-label" for="customerInput">{% trans "Müştəri adı" %} <span
+                                        class="text-muted">({% trans "Məs: Əli Məmmədov Bakı" %})</span></label>
+                                <input type="text" class="form-control" id="customerInput" name="customer_input"
+                                    placeholder="{% trans 'Müştəri adı, soyadı və ya yer yazın...' %}"
+                                    autocomplete="off" required>
+
                                 <div id="searchResults" class="mt-2" style="display: none;">
                                     <div class="list-group" id="customerResults"></div>
                                 </div>
                             </div>
-                            
+
                             <div class="mb-3" id="phoneFieldContainer" style="display: none;">
-                                <label class="form-label" for="phoneInput">{% trans "Telefon" %} <span class="text-danger">*</span></label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="phoneInput" 
-                                       name="phone"
-                                       placeholder="+994501234567">
-                                <small class="form-text text-muted">{% trans "Yeni müştəri üçün telefon nömrəsi mütləqdir" %}</small>
+                                <label class="form-label" for="phoneInput">{% trans "Telefon" %} <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="phoneInput" name="phone"
+                                    placeholder="+994501234567">
+                                <small class="form-text text-muted">
+                                    {% trans "Yeni müştəri üçün telefon nömrəsimütləqdir" %}
+                                </small>
                             </div>
-                            
+
                             <input type="hidden" name="customer_id" id="customer_id" value="">
                         </div>
-                    </div>
-                    
-                    <!-- Debt Details Section -->
-                    <div class="card section-card debt-section">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-cash-coin"></i> {% trans "Borc məlumatları" %}</h6>
-                        </div>
+
                         <div class="card-body" style="background: white;">
                             <div class="mb-3">
                                 <label class="form-label">{% trans "Məbləğ" %} *</label>
                                 {{ form.amount }}
                                 {% if form.amount.errors %}
-                                    <div class="text-danger">{{ form.amount.errors }}</div>
+                                <div class="text-danger">{{ form.amount.errors }}</div>
                                 {% endif %}
                             </div>
-                            <div class="mb-3">
-                                {{ form.date_given }}
-                                {% if form.date_given.errors %}
-                                    <div class="text-danger">{{ form.date_given.errors }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><i class="bi bi-calendar-check"></i> {% trans "Vəd tarixi" %} *</label>
-                                {{ form.promise_date }}
-                                {% if form.promise_date.errors %}
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label"><i class="bi bi-calendar-check"></i>
+                                        {% trans "Vəd tarixi"%} *</label>
+                                    {{ form.promise_date }}
+                                    {% if form.promise_date.errors %}
                                     <div class="text-danger">{{ form.promise_date.errors }}</div>
-                                {% endif %}
-                                <small class="form-text text-muted">{% trans "Müştərinin pulu qaytarmaq üçün vəd etdiyi tarix" %}</small>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        {% trans "Müştərinin pulu qaytarmaq üçün vəd etdiyi tarix" %}</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">{% trans "Verilmə tarixi" %}</label>
+                                    {{ form.date_given }}
+                                    {% if form.date_given.errors %}
+                                    <div class="text-danger">{{ form.date_given.errors }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">{% trans "Təsvir" %}</label>
                                 {{ form.description }}
                                 {% if form.description.errors %}
-                                    <div class="text-danger">{{ form.description.errors }}</div>
+                                <div class="text-danger">{{ form.description.errors }}</div>
                                 {% endif %}
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{% url 'debt_list' %}" class="btn btn-secondary">
-                            <i class="bi bi-x-circle"></i> {% trans "Ləğv et" %}
-                        </a>
-                        <button type="submit" class="btn btn-primary" title="{% trans 'Ctrl+Enter ilə göndərin' %}">
-                            <i class="bi bi-check-circle-fill"></i> {% trans "Borc əlavə et" %}
-                            <small class="d-block d-md-none mt-1" style="font-size: 0.7rem; opacity: 0.8;">{% trans "Ctrl+Enter" %}</small>
-                        </button>
-                    </div>
-                </form>
+
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'debt_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> {% trans "Ləğv et" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary" title="{% trans 'Ctrl+Enter ilə göndərin' %}">
+                                <i class="bi bi-check-circle-fill"></i> {% trans "Borc əlavə et" %}
+                                <small class="d-block d-md-none mt-1" style="font-size: 0.7rem; opacity: 0.8;">{% trans
+                                    "Ctrl+Enter" %}</small>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -258,165 +292,165 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const customerInput = document.getElementById('customerInput');
-    const phoneInput = document.getElementById('phoneInput');
-    const phoneFieldContainer = document.getElementById('phoneFieldContainer');
-    const searchResults = document.getElementById('searchResults');
-    const customerResults = document.getElementById('customerResults');
-    const customerIdInput = document.getElementById('customer_id');
-    const debtForm = document.getElementById('debtForm');
-    
-    let searchTimeout;
-    let selectedCustomerId = null;
-    
-    // Handle Enter key: move to next field, Ctrl+Enter submits form
-    const formInputs = Array.from(debtForm.querySelectorAll('input, textarea, select')).filter(
-        input => input.type !== 'hidden' && input.id !== 'customer_id'
-    );
-    
-    formInputs.forEach((input, index) => {
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                // If Ctrl+Enter, submit the form
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    debtForm.requestSubmit();
-                    return false;
-                }
-                
-                // For textarea, allow Enter for new lines
-                if (input.tagName === 'TEXTAREA') {
-                    return; // Allow default behavior for textarea
-                }
-                
-                // For customer input, if dropdown is visible, don't prevent default
-                if (input.id === 'customerInput' && searchResults.style.display === 'block') {
-                    // Let the dropdown handle Enter for selection
-                    return;
-                }
-                
-                // For other inputs, prevent default and move to next field
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Find next input field
-                let nextIndex = index + 1;
-                while (nextIndex < formInputs.length) {
-                    const nextInput = formInputs[nextIndex];
-                    // Skip hidden and disabled inputs
-                    if (nextInput.type !== 'hidden' && !nextInput.disabled && nextInput.offsetParent !== null) {
-                        nextInput.focus();
-                        // If it's a select, open the dropdown
-                        if (nextInput.tagName === 'SELECT') {
-                            setTimeout(() => nextInput.click(), 10);
-                        }
+    document.addEventListener('DOMContentLoaded', function () {
+        const customerInput = document.getElementById('customerInput');
+        const phoneInput = document.getElementById('phoneInput');
+        const phoneFieldContainer = document.getElementById('phoneFieldContainer');
+        const searchResults = document.getElementById('searchResults');
+        const customerResults = document.getElementById('customerResults');
+        const customerIdInput = document.getElementById('customer_id');
+        const debtForm = document.getElementById('debtForm');
+
+        let searchTimeout;
+        let selectedCustomerId = null;
+
+        // Handle Enter key: move to next field, Ctrl+Enter submits form
+        const formInputs = Array.from(debtForm.querySelectorAll('input, textarea, select')).filter(
+            input => input.type !== 'hidden' && input.id !== 'customer_id'
+        );
+
+        formInputs.forEach((input, index) => {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    // If Ctrl+Enter, submit the form
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        debtForm.requestSubmit();
                         return false;
                     }
-                    nextIndex++;
+
+                    // For textarea, allow Enter for new lines
+                    if (input.tagName === 'TEXTAREA') {
+                        return; // Allow default behavior for textarea
+                    }
+
+                    // For customer input, if dropdown is visible, don't prevent default
+                    if (input.id === 'customerInput' && searchResults.style.display === 'block') {
+                        // Let the dropdown handle Enter for selection
+                        return;
+                    }
+
+                    // For other inputs, prevent default and move to next field
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Find next input field
+                    let nextIndex = index + 1;
+                    while (nextIndex < formInputs.length) {
+                        const nextInput = formInputs[nextIndex];
+                        // Skip hidden and disabled inputs
+                        if (nextInput.type !== 'hidden' && !nextInput.disabled && nextInput.offsetParent !== null) {
+                            nextInput.focus();
+                            // If it's a select, open the dropdown
+                            if (nextInput.tagName === 'SELECT') {
+                                setTimeout(() => nextInput.click(), 10);
+                            }
+                            return false;
+                        }
+                        nextIndex++;
+                    }
+
+                    // If no next field found, don't submit - user must use Ctrl+Enter
+                    return false;
                 }
-                
-                // If no next field found, don't submit - user must use Ctrl+Enter
-                return false;
+            });
+        });
+
+        // Prevent form submission on Enter key (only allow Ctrl+Enter or button click)
+        debtForm.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+                // If Enter is pressed on submit button, allow it
+                if (e.target && (e.target.type === 'submit' || e.target.closest('button[type="submit"]'))) {
+                    return;
+                }
+                // Otherwise, prevent default (handled by individual input handlers above)
+                if (e.target && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                }
             }
         });
-    });
-    
-    // Prevent form submission on Enter key (only allow Ctrl+Enter or button click)
-    debtForm.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-            // If Enter is pressed on submit button, allow it
-            if (e.target && (e.target.type === 'submit' || e.target.closest('button[type="submit"]'))) {
-                return;
-            }
-            // Otherwise, prevent default (handled by individual input handlers above)
-            if (e.target && e.target.tagName !== 'TEXTAREA') {
-                e.preventDefault();
-            }
-        }
-    });
-    
-    // Show preview when input is focused
-    customerInput.addEventListener('focus', function() {
-        const query = this.value.trim();
-        if (query.length === 0) {
-            performSearch('', true);
-            phoneFieldContainer.style.display = 'none';
-            phoneInput.removeAttribute('required');
-        } else if (query.length >= 2) {
-            performSearch(query);
-            // Show phone field if no customer is selected
-            if (!selectedCustomerId) {
-                phoneFieldContainer.style.display = 'block';
-                phoneInput.setAttribute('required', 'required');
-            }
-        } else if (query.length > 0) {
-            // User has typed something but less than 2 characters
-            if (!selectedCustomerId) {
-                phoneFieldContainer.style.display = 'block';
-                phoneInput.setAttribute('required', 'required');
-            }
-        }
-    });
-    
-    // Search as user types
-    customerInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        const query = this.value.trim();
-        
-        // Clear selection if user is typing
-        if (query.length > 0 && selectedCustomerId) {
-            selectedCustomerId = null;
-            customerIdInput.value = '';
-        }
-        
-        // Show phone field when user starts typing (potential new customer)
-        if (query.length > 0 && !selectedCustomerId) {
-            phoneFieldContainer.style.display = 'block';
-            phoneInput.setAttribute('required', 'required');
-        } else if (query.length === 0) {
-            phoneFieldContainer.style.display = 'none';
-            phoneInput.removeAttribute('required');
-        }
-        
-        if (query.length >= 2) {
-            searchTimeout = setTimeout(() => {
+
+        // Show preview when input is focused
+        customerInput.addEventListener('focus', function () {
+            const query = this.value.trim();
+            if (query.length === 0) {
+                performSearch('', true);
+                phoneFieldContainer.style.display = 'none';
+                phoneInput.removeAttribute('required');
+            } else if (query.length >= 2) {
                 performSearch(query);
-            }, 300);
-        } else if (query.length === 0) {
-            performSearch('', true);
-        } else {
-            searchResults.style.display = 'none';
-            customerResults.innerHTML = '';
-        }
-    });
-    
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!customerInput.contains(e.target) && !searchResults.contains(e.target)) {
-            searchResults.style.display = 'none';
-        }
-    });
-    
-    // Perform search
-    function performSearch(query, isPreview = false) {
-        const url = query ? 
-            `{% url 'customer_search_api' %}?q=${encodeURIComponent(query)}` : 
-            `{% url 'customer_search_api' %}?q=`;
-        
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
+                // Show phone field if no customer is selected
+                if (!selectedCustomerId) {
+                    phoneFieldContainer.style.display = 'block';
+                    phoneInput.setAttribute('required', 'required');
+                }
+            } else if (query.length > 0) {
+                // User has typed something but less than 2 characters
+                if (!selectedCustomerId) {
+                    phoneFieldContainer.style.display = 'block';
+                    phoneInput.setAttribute('required', 'required');
+                }
+            }
+        });
+
+        // Search as user types
+        customerInput.addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+
+            // Clear selection if user is typing
+            if (query.length > 0 && selectedCustomerId) {
+                selectedCustomerId = null;
+                customerIdInput.value = '';
+            }
+
+            // Show phone field when user starts typing (potential new customer)
+            if (query.length > 0 && !selectedCustomerId) {
+                phoneFieldContainer.style.display = 'block';
+                phoneInput.setAttribute('required', 'required');
+            } else if (query.length === 0) {
+                phoneFieldContainer.style.display = 'none';
+                phoneInput.removeAttribute('required');
+            }
+
+            if (query.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    performSearch(query);
+                }, 300);
+            } else if (query.length === 0) {
+                performSearch('', true);
+            } else {
+                searchResults.style.display = 'none';
                 customerResults.innerHTML = '';
-                if (data.customers && data.customers.length > 0) {
-                    const customersToShow = isPreview && !query ? data.customers.slice(0, 10) : data.customers;
-                    
-                    customersToShow.forEach(customer => {
-                        const item = document.createElement('a');
-                        item.href = '#';
-                        item.className = 'list-group-item list-group-item-action';
-                        item.innerHTML = `
+            }
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!customerInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        // Perform search
+        function performSearch(query, isPreview = false) {
+            const url = query ?
+                `{% url 'customer_search_api' %}?q=${encodeURIComponent(query)}` :
+                `{% url 'customer_search_api' %}?q=`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    customerResults.innerHTML = '';
+                    if (data.customers && data.customers.length > 0) {
+                        const customersToShow = isPreview && !query ? data.customers.slice(0, 10) : data.customers;
+
+                        customersToShow.forEach(customer => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'list-group-item list-group-item-action';
+                            item.innerHTML = `
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">${customer.display}</h6>
                             </div>
@@ -424,103 +458,132 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <small>${customer.phone ? '📞 ' + customer.phone : ''}</small>
                             </p>
                         `;
-                        item.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            selectCustomer(customer);
+                            item.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                selectCustomer(customer);
+                            });
+                            customerResults.appendChild(item);
                         });
-                        customerResults.appendChild(item);
-                    });
-                    
-                    if (isPreview && !query && data.customers.length > 10) {
-                        const moreItem = document.createElement('div');
-                        moreItem.className = 'list-group-item text-muted text-center';
-                        moreItem.textContent = `{% trans "və daha" %} ${data.customers.length - 10} {% trans "müştəri... Axtarış üçün yazın" %}`;
-                        customerResults.appendChild(moreItem);
-                    }
-                    
-                    searchResults.style.display = 'block';
-                } else {
-                    if (query.length >= 2) {
-                        customerResults.innerHTML = '<div class="list-group-item text-muted">{% trans "Müştəri tapılmadı - yeni müştəri yaradılacaq" %}</div>';
-                        searchResults.style.display = 'block';
-                        // Show phone field when no customer found
-                        if (!selectedCustomerId) {
-                            phoneFieldContainer.style.display = 'block';
-                            phoneInput.setAttribute('required', 'required');
+
+                        if (isPreview && !query && data.customers.length > 10) {
+                            const moreItem = document.createElement('div');
+                            moreItem.className = 'list-group-item text-muted text-center';
+                            moreItem.textContent = `{% trans "və daha" %} ${data.customers.length - 10} {% trans "müştəri... Axtarış üçün yazın" %}`;
+                            customerResults.appendChild(moreItem);
                         }
+
+                        searchResults.style.display = 'block';
                     } else {
-                        searchResults.style.display = 'none';
+                        if (query.length >= 2) {
+                            customerResults.innerHTML = '<div class="list-group-item text-muted">{% trans "Müştəri tapılmadı - yeni müştəri yaradılacaq" %}</div>';
+                            searchResults.style.display = 'block';
+                            // Show phone field when no customer found
+                            if (!selectedCustomerId) {
+                                phoneFieldContainer.style.display = 'block';
+                                phoneInput.setAttribute('required', 'required');
+                            }
+                        } else {
+                            searchResults.style.display = 'none';
+                        }
                     }
-                }
-            })
-            .catch(error => {
-                console.error('Search error:', error);
-            });
-    }
-    
-    // Select customer from dropdown
-    function selectCustomer(customer) {
-        selectedCustomerId = customer.id;
-        customerIdInput.value = customer.id;
-        customerInput.value = customer.display;
-        searchResults.style.display = 'none';
-        phoneFieldContainer.style.display = 'none';
-        phoneInput.value = customer.phone || '';
-        phoneInput.removeAttribute('required');
-    }
-    
-    // Form submission - automatically create customer if not selected
-    document.getElementById('debtForm').addEventListener('submit', function(e) {
-        const customerId = customerIdInput.value;
-        const customerName = customerInput.value.trim();
-        const phone = phoneInput.value.trim();
-        
-        if (!customerName) {
-            e.preventDefault();
-            showError('{% trans "Zəhmət olmasa müştəri adını daxil edin" %}', customerInput);
-            return false;
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                });
         }
-        
-        // If no customer selected, phone is required for new customer
-        if (!customerId && !phone) {
-            e.preventDefault();
-            phoneFieldContainer.style.display = 'block';
-            phoneInput.setAttribute('required', 'required');
-            showError('{% trans "Yeni müştəri üçün telefon nömrəsi mütləqdir" %}', phoneInput);
-            return false;
+
+        // Select customer from dropdown
+        function selectCustomer(customer) {
+            selectedCustomerId = customer.id;
+            customerIdInput.value = customer.id;
+            customerInput.value = customer.display;
+            searchResults.style.display = 'none';
+            phoneFieldContainer.style.display = 'none';
+            phoneInput.value = customer.phone || '';
+            phoneInput.removeAttribute('required');
+        }
+
+        // Form submission - automatically create customer if not selected
+        document.getElementById('debtForm').addEventListener('submit', function (e) {
+            const customerId = customerIdInput.value;
+            const customerName = customerInput.value.trim();
+            const phone = phoneInput.value.trim();
+
+            if (!customerName) {
+                e.preventDefault();
+                showError('{% trans "Zəhmət olmasa müştəri adını daxil edin" %}', customerInput);
+                return false;
+            }
+
+            // If no customer selected, phone is required for new customer
+            if (!customerId && !phone) {
+                e.preventDefault();
+                phoneFieldContainer.style.display = 'block';
+                phoneInput.setAttribute('required', 'required');
+                showError('{% trans "Yeni müştəri üçün telefon nömrəsi mütləqdir" %}', phoneInput);
+                return false;
+            }
+        });
+
+        // Function to show error message
+        function showError(message, targetElement) {
+            const existingErrors = document.querySelectorAll('.error-message');
+            existingErrors.forEach(err => err.remove());
+
+            document.querySelectorAll('.field-error').forEach(field => {
+                field.classList.remove('field-error');
+            });
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+
+            const form = document.getElementById('debtForm');
+            form.parentNode.insertBefore(errorDiv, form);
+
+            if (targetElement) {
+                targetElement.classList.add('field-error');
+                targetElement.focus();
+            }
+
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            setTimeout(() => {
+                errorDiv.remove();
+                if (targetElement) {
+                    targetElement.classList.remove('field-error');
+                }
+            }, 5000);
+        }
+        // Date calculation logic
+        const dateGivenInput = document.getElementById('id_date_given');
+        const promiseDateInput = document.getElementById('id_promise_date');
+
+        function updatePromiseDate() {
+            if (dateGivenInput.value) {
+                const dateGiven = new Date(dateGivenInput.value);
+                // Add 25 days
+                const promiseDate = new Date(dateGiven);
+                promiseDate.setDate(promiseDate.getDate() + 25);
+
+                // Format directly to YYYY-MM-DD (local time)
+                // We constructs the string manually to avoid timezone shifts from toISOString()
+                const year = promiseDate.getFullYear();
+                const month = String(promiseDate.getMonth() + 1).padStart(2, '0');
+                const day = String(promiseDate.getDate()).padStart(2, '0');
+
+                promiseDateInput.value = `${year}-${month}-${day}`;
+            }
+        }
+
+        if (dateGivenInput && promiseDateInput) {
+            // Update on load if date is set
+            if (dateGivenInput.value && !promiseDateInput.value) {
+                updatePromiseDate();
+            }
+            // Update when date_given changes
+            dateGivenInput.addEventListener('change', updatePromiseDate);
         }
     });
-    
-    // Function to show error message
-    function showError(message, targetElement) {
-        const existingErrors = document.querySelectorAll('.error-message');
-        existingErrors.forEach(err => err.remove());
-        
-        document.querySelectorAll('.field-error').forEach(field => {
-            field.classList.remove('field-error');
-        });
-        
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error-message';
-        errorDiv.textContent = message;
-        
-        const form = document.getElementById('debtForm');
-        form.parentNode.insertBefore(errorDiv, form);
-        
-        if (targetElement) {
-            targetElement.classList.add('field-error');
-            targetElement.focus();
-        }
-        
-        errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        setTimeout(() => {
-            errorDiv.remove();
-            if (targetElement) {
-                targetElement.classList.remove('field-error');
-            }
-        }, 5000);
-    }
-});
 </script>
 {% endblock %}
