@@ -62,11 +62,18 @@ class Customer(models.Model):
             full_name += f" {self.patronymic}"
         return f"{full_name} ({self.place})"
 
+class DebtQuerySet(models.QuerySet):
+    def alive(self):
+        return self.filter(is_deleted=False)
 
-class DebtManager(models.Manager):
-    """Custom manager that excludes deleted debts by default"""
+class DebtManager(models.Manager.from_queryset(DebtQuerySet)):
     def get_queryset(self):
-        return super().get_queryset().filter(is_deleted=False)
+        return super().get_queryset().alive()
+
+# class DebtManager(models.Manager):
+#     """Custom manager that excludes deleted debts by default"""
+#     def get_queryset(self):
+#         return super().get_queryset().filter(is_deleted=False)
 
 
 class Debt(models.Model):
