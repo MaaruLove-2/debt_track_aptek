@@ -8,7 +8,8 @@ class CashierAdmin(admin.ModelAdmin):
     list_display = ['name', 'surname', 'user', 'phone', 'email', 'created_at']
     search_fields = ['name', 'surname', 'phone', 'email', 'user__username']
     list_filter = ['created_at']
-    autocomplete_fields = ['user']
+    # Only show these fields - exclude user to avoid context copying error
+    fields = ['name', 'surname', 'phone', 'email']
 
 
 @admin.register(Customer)
