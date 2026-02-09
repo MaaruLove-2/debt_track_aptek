@@ -598,9 +598,10 @@ def debt_pay_all_customer(request, pk):
         count = 0
         total_amount = 0
         for d in customer_debts:
+            # Sum remaining amount BEFORE marking as paid
+            total_amount += d.remaining_amount
             d.mark_as_paid(payment_method=payment_method)
             count += 1
-            total_amount += d.remaining_amount
         
         # Get payment method display name
         payment_methods = {
