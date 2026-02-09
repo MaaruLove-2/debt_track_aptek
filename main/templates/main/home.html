@@ -27,7 +27,26 @@
     <div class="col-md-3">
         <div class="card stat-card" style="border-left-color: #17a2b8;">
             <div class="card-body">
-                <h5 class="card-title">{% trans "Aylıq hesabat" %}</h5>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h5 class="card-title mb-1">{% trans "Aylıq hesabat" %}</h5>
+                        <p class="mb-0">
+                            <small class="text-muted">
+                                {{ selected_month|date:"F Y" }}
+                            </small>
+                        </p>
+                    </div>
+                    <form method="get" action="{% url 'home' %}" class="d-flex flex-column align-items-end gap-1">
+                        <input type="month"
+                               name="month"
+                               class="form-control form-control-sm"
+                               style="max-width: 150px;"
+                               value="{{ selected_month|date:'Y-m' }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-search"></i> {% trans "Göstər" %}
+                        </button>
+                    </form>
+                </div>
                 <p class="mb-1"><strong>{% trans "Verilən" %}:</strong> <span class="text-info">₼{{ monthly_given|floatformat:2 }}</span></p>
                 <p class="mb-1"><strong>{% trans "Qaytarılan" %}:</strong> <span class="text-success">₼{{ monthly_returned|floatformat:2 }}</span></p>
                 <p class="mb-0"><strong>{% trans "Qalıq" %}:</strong> <span class="{% if monthly_balance > 0 %}text-danger{% else %}text-success{% endif %}">₼{{ monthly_balance|floatformat:2 }}</span></p>
@@ -52,6 +71,47 @@
         </div>
     </div>
 </div>
+
+{% if todays_debts %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-calendar-day"></i> {% trans "Bugünkü əməliyyatlar - Müştərilərə verilən borclar" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Müştəri" %}</th>
+                                <th>{% trans "Yer" %}</th>
+                                <th class="text-end">{% trans "Ümumi borc məbləği" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for debt_summary in todays_debts %}
+                            <tr>
+                                <td>
+                                    <strong>{{ debt_summary.customer__surname }} {{ debt_summary.customer__name }}</strong>
+                                    {% if debt_summary.customer__patronymic %}
+                                        {{ debt_summary.customer__patronymic }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ debt_summary.customer__place }}</td>
+                                <td class="text-end">
+                                    <span class="badge bg-success fs-6">₼{{ debt_summary.total_debt|floatformat:2 }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="row">
     <div class="col-md-12">

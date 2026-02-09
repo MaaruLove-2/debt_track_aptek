@@ -175,6 +175,52 @@
                 <h5><i class="bi bi-cash-coin"></i> {% trans "Ödənişlər (Qismən və Tam)" %} - {{ selected_date|date:"d.m.Y" }}</h5>
             </div>
             <div class="card-body">
+                {% if is_admin and cashier_summary %}
+                <div class="mb-4">
+                    <h6 class="text-primary mb-3">
+                        <i class="bi bi-bar-chart"></i>
+                        {% trans "Kassirlərə görə bugünkü borc və ödənişlərin ümumi məbləği" %}
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>{% trans "Kassir" %}</th>
+                                    <th class="text-end">{% trans "Verilən borc (cəmi)" %}</th>
+                                    <th class="text-end">{% trans "Borc sayı" %}</th>
+                                    <th class="text-end">{% trans "Alınan ödəniş (cəmi)" %}</th>
+                                    <th class="text-end">{% trans "Ödəniş sayı" %}</th>
+                                    <th class="text-end">{% trans "Net (borc - ödəniş)" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for summary in cashier_summary %}
+                                <tr>
+                                    <td><strong>{{ summary.cashier__name }} {{ summary.cashier__surname }}</strong></td>
+                                    <td class="text-end">
+                                        <span class="badge bg-success fs-6">₼{{ summary.total_debt|default_if_none:0|floatformat:2 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">{{ summary.debt_count|default_if_none:0 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-primary fs-6">₼{{ summary.total_paid|default_if_none:0|floatformat:2 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-warning text-dark">{{ summary.payment_count|default_if_none:0 }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge {% if summary.net_debt > 0 %}bg-danger{% elif summary.net_debt < 0 %}bg-success{% else %}bg-secondary{% endif %} fs-6">
+                                            ₼{{ summary.net_debt|default_if_none:0|floatformat:2 }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="table-responsive">
                     <table class="table table-sm table-hover">
                         <thead>

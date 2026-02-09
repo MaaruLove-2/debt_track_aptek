@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from django.utils.translation import gettext as _
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count
 from .models import Cashier, Customer, Debt, Payment
 from .forms import CashierForm, CustomerForm, DebtForm, DebtEditForm, CustomerImportForm, SimplifiedCustomerForm, PaymentForm
 from .utils import parse_csv_file, parse_excel_file, import_customers_from_data
@@ -79,10 +79,21 @@ def home(request):
     from datetime import datetime
     from calendar import monthrange
     
-    # Get current month start and end dates
-    current_month_start = today.replace(day=1)
-    last_day = monthrange(today.year, today.month)[1]
-    current_month_end = today.replace(day=last_day)
+    # Get selected month from query params (format: YYYY-MM), default to current month
+    selected_month_str = request.GET.get('month', '').strip()
+    if selected_month_str:
+        try:
+            from datetime import datetime as dt
+            selected_month_date = dt.strptime(selected_month_str, '%Y-%m').date()
+        except (ValueError, TypeError):
+            selected_month_date = today.replace(day=1)
+    else:
+        selected_month_date = today.replace(day=1)
+
+    # Get start and end dates for selected month
+    current_month_start = selected_month_date.replace(day=1)
+    last_day = monthrange(selected_month_date.year, selected_month_date.month)[1]
+    current_month_end = selected_month_date.replace(day=last_day)
     
     # Convert to datetime for filtering
     month_start_datetime = timezone.make_aware(datetime.combine(current_month_start, datetime.min.time()))
@@ -117,6 +128,18 @@ def home(request):
     
     monthly_returned = monthly_partial_payments + monthly_full_payments
     monthly_balance = monthly_given - monthly_returned
+    
+    # Today's debt summary by customer
+    today_start = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+    today_end = timezone.make_aware(datetime.combine(today, datetime.max.time()))
+    
+    todays_debts = Debt.objects.filter(
+        cashier=cashier,
+        date_given__gte=today_start,
+        date_given__lte=today_end
+    ).select_related('customer').values('customer__name', 'customer__surname', 'customer__patronymic', 'customer__place').annotate(
+        total_debt=Sum('amount')
+    ).order_by('-total_debt')
     
     # Get statistics for current cashier only
     # Prefetch payments to calculate remaining_amount correctly
@@ -159,6 +182,8 @@ def home(request):
         'monthly_given': monthly_given,
         'monthly_returned': monthly_returned,
         'monthly_balance': monthly_balance,
+        'selected_month': current_month_start,
+        'todays_debts': todays_debts,
     }
     
     return render(request, 'main/home.html', context)
@@ -1035,10 +1060,21 @@ def admin_dashboard(request):
     from datetime import datetime, timedelta
     from calendar import monthrange
     
-    # Get current month start and end dates
-    current_month_start = today.replace(day=1)
-    last_day = monthrange(today.year, today.month)[1]
-    current_month_end = today.replace(day=last_day)
+    # Get selected month from query params (format: YYYY-MM), default to current month
+    selected_month_str = request.GET.get('month', '').strip()
+    if selected_month_str:
+        try:
+            from datetime import datetime as dt
+            selected_month_date = dt.strptime(selected_month_str, '%Y-%m').date()
+        except (ValueError, TypeError):
+            selected_month_date = today.replace(day=1)
+    else:
+        selected_month_date = today.replace(day=1)
+
+    # Get start and end dates for selected month
+    current_month_start = selected_month_date.replace(day=1)
+    last_day = monthrange(selected_month_date.year, selected_month_date.month)[1]
+    current_month_end = selected_month_date.replace(day=last_day)
     
     # Convert to datetime for filtering
     month_start_datetime = timezone.make_aware(datetime.combine(current_month_start, datetime.min.time()))
@@ -1129,6 +1165,7 @@ def admin_dashboard(request):
         'monthly_given': monthly_given,
         'monthly_returned': monthly_returned,
         'monthly_balance': monthly_balance,
+        'selected_month': current_month_start,
     }
     
     return render(request, 'main/admin_dashboard.html', context)
@@ -1277,7 +1314,7 @@ def todays_operations(request):
         # Separate debts given today from debts returned/paid today
         debts_given_today = Debt.all_objects.filter(
             date_given__gte=start_datetime, 
-            date_given__lt=end_datetime
+            date_given__lt=end_datetime,
         ).select_related('cashier', 'customer', 'deleted_by').prefetch_related('payments').order_by('-date_given', '-id')
         
         debts_returned_today = Debt.all_objects.filter(
@@ -1324,6 +1361,67 @@ def todays_operations(request):
         payments_today_total = partial_payments_today.aggregate(total=Sum('amount'))['total'] or 0
         payments_today_total += sum(debt.amount for debt in full_payments_today)
         
+        # Cashier summary - total debt given and payments received by each cashier today
+        # First, aggregate given debts per cashier (id, name, surname)
+        cashier_summary_qs = debts_given_today.values('cashier__id', 'cashier__name', 'cashier__surname').annotate(
+            total_debt=Sum('amount'),
+            debt_count=Count('id')
+        ).order_by('-total_debt')
+        cashier_summary = list(cashier_summary_qs)
+
+        # Then, aggregate payments (partial + full) per cashier in Python
+        from collections import defaultdict
+        payments_by_cashier = defaultdict(lambda: {'total_paid': 0, 'payment_count': 0, 'name': '', 'surname': ''})
+
+        # Partial payments
+        for payment in partial_payments_today:
+            cashier = payment.debt.cashier
+            if cashier:
+                data = payments_by_cashier[cashier.id]
+                data['total_paid'] += payment.amount or 0
+                data['payment_count'] += 1
+                data['name'] = cashier.name
+                data['surname'] = cashier.surname
+
+        # Full payments (treated as one payment equal to full amount)
+        for debt in full_payments_today:
+            cashier = debt.cashier
+            if cashier:
+                data = payments_by_cashier[cashier.id]
+                data['total_paid'] += debt.amount or 0
+                data['payment_count'] += 1
+                data['name'] = cashier.name
+                data['surname'] = cashier.surname
+
+        # Merge payment info into cashier_summary (for cashiers who gave debt today)
+        existing_cashier_ids = set()
+        for summary in cashier_summary:
+            cid = summary.get('cashier__id')
+            existing_cashier_ids.add(cid)
+            pay_data = payments_by_cashier.get(cid, {'total_paid': 0, 'payment_count': 0})
+            summary['total_paid'] = pay_data['total_paid']
+            summary['payment_count'] = pay_data['payment_count']
+            # Net = given - received
+            summary['net_debt'] = (summary.get('total_debt') or 0) - (summary.get('total_paid') or 0)
+
+        # Add cashiers who only had payments (but no new debts given today)
+        for cid, pay_data in payments_by_cashier.items():
+            if cid not in existing_cashier_ids:
+                cashier_entry = {
+                    'cashier__id': cid,
+                    'cashier__name': pay_data['name'],
+                    'cashier__surname': pay_data['surname'],
+                    'total_debt': 0,
+                    'debt_count': 0,
+                    'total_paid': pay_data['total_paid'],
+                    'payment_count': pay_data['payment_count'],
+                    'net_debt': -pay_data['total_paid'],
+                }
+                cashier_summary.append(cashier_entry)
+
+        # Sort final summary by total_debt descending (then by cashier name)
+        cashier_summary.sort(key=lambda x: (-float(x.get('total_debt') or 0), str(x.get('cashier__name') or '')))
+        
         context = {
             'debts_given_today': debts_given_today,
             'debts_returned_today': debts_returned_today,
@@ -1334,6 +1432,7 @@ def todays_operations(request):
             'total_amount': total_amount,
             'deleted_count': deleted_count,
             'payments_today_total': payments_today_total,
+            'cashier_summary': cashier_summary,
             'is_admin': True,
         }
         return render(request, 'main/todays_operations.html', context)
@@ -1408,6 +1507,14 @@ def todays_operations(request):
     payments_today_total = partial_payments_today.aggregate(total=Sum('amount'))['total'] or 0
     payments_today_total += sum(debt.amount for debt in full_payments_today)
     
+    # Cashier summary - for single cashier, just their own total
+    cashier_summary = [{
+        'cashier__name': cashier.name,
+        'cashier__surname': cashier.surname,
+        'total_debt': total_amount,
+        'debt_count': debts_given_today.count()
+    }]
+    
     context = {
         'cashier': cashier,
         'debts_given_today': debts_given_today,
@@ -1419,6 +1526,7 @@ def todays_operations(request):
         'total_amount': total_amount,
         'deleted_count': deleted_count,
         'payments_today_total': payments_today_total,
+        'cashier_summary': cashier_summary,
         'is_admin': False,
     }
     
