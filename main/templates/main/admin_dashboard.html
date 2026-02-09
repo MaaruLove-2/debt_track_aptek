@@ -1,7 +1,7 @@
 {% extends 'main/base.html' %}
 {% load i18n %}
 
-{% block title %}{% trans "Admin Paneli - Aptek Borc İzləyicisi" %}{% endblock %}
+{% block title %}{% trans "Admin Paneli - Borc İzləyicisi" %}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -36,8 +36,26 @@
     <div class="col-md-3">
         <div class="card stat-card" style="border-left-color: #17a2b8;">
             <div class="card-body">
-                <h5 class="card-title">{% trans "Aylıq hesabat" %}</h5>
-                <p class="mb-1"><small class="text-muted">{% now "F Y" %}</small></p>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h5 class="card-title mb-1">{% trans "Aylıq hesabat" %}</h5>
+                        <p class="mb-0">
+                            <small class="text-muted">
+                                {{ selected_month|date:"F Y" }}
+                            </small>
+                        </p>
+                    </div>
+                    <form method="get" action="{% url 'admin_dashboard' %}" class="d-flex flex-column align-items-end gap-1">
+                        <input type="month"
+                               name="month"
+                               class="form-control form-control-sm"
+                               style="max-width: 150px;"
+                               value="{{ selected_month|date:'Y-m' }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-search"></i> {% trans "Göstər" %}
+                        </button>
+                    </form>
+                </div>
                 <p class="mb-1"><strong>{% trans "Verilən" %}:</strong> <span class="text-info">₼{{ monthly_given|floatformat:2 }}</span></p>
                 <p class="mb-1"><strong>{% trans "Qaytarılan" %}:</strong> <span class="text-success">₼{{ monthly_returned|floatformat:2 }}</span></p>
                 <p class="mb-0"><strong>{% trans "Qalıq" %}:</strong> <span class="{% if monthly_balance > 0 %}text-danger{% else %}text-success{% endif %}">₼{{ monthly_balance|floatformat:2 }}</span></p>
