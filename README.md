@@ -1,6 +1,6 @@
-# Pharmacy Debt Tracker
+# Debt Tracker
 
-A comprehensive Django web application to track customer debts for your pharmacy. The system supports multiple pharmacists, tracks debt dates, promise dates, and automatically reminds you of overdue debts.
+A comprehensive Django web application to track customer debts for your business. The system supports multiple pharmacists, tracks debt dates, promise dates, and automatically reminds you of overdue debts.
 
 ## Features
 
@@ -89,10 +89,10 @@ This project uses **PostgreSQL** as the database. See [DATABASE_SETUP.md](DATABA
 
 ## Usage Guide
 
-### 1. Add Pharmacists
-- Go to "Manage" → "Pharmacists" → "Add Pharmacist"
+### 1. Add cashier
+- Go to "Manage" → "cashier" → "Add cashier"
 - Enter pharmacist name, surname, phone, and email
-- You can add up to 5 pharmacists (or more if needed)
+- You can add up to 5 cashier (or more if needed)
 
 ### 2. Add Customers
 
